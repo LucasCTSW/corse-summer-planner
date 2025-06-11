@@ -1,4 +1,3 @@
-
 import { UserPreferences, FormOption } from "./types";
 
 export function generatePersonalizedMessage(preferences: UserPreferences): string {
@@ -162,4 +161,35 @@ export function getRemainingTime(): { days: number; hours: number; minutes: numb
 
 export function formatCountdown(time: { days: number; hours: number; minutes: number; seconds: number }): string {
   return `J-${time.days} ${time.hours.toString().padStart(2, '0')}:${time.minutes.toString().padStart(2, '0')}:${time.seconds.toString().padStart(2, '0')}`;
+}
+
+export function saveQuestionConfiguration(questions: any[]): void {
+  try {
+    localStorage.setItem('corsicaTripQuestions', JSON.stringify(questions));
+  } catch (error) {
+    console.error('Error saving question configuration:', error);
+  }
+}
+
+export function getQuestionConfiguration(): any[] {
+  try {
+    const saved = localStorage.getItem('corsicaTripQuestions');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    
+    // Configuration par défaut
+    return [
+      { stepName: 'meals', title: 'Plats préférés', emoji: '🍽️', allowMultiple: true, allowCustom: true, options: [] },
+      { stepName: 'allergies', title: 'Allergies', emoji: '🚫', allowMultiple: true, allowCustom: true, options: [] },
+      { stepName: 'breakfast', title: 'Petit-déjeuner', emoji: '🥐', allowMultiple: true, allowCustom: false, options: [] },
+      { stepName: 'drinks', title: 'Boissons préférées', emoji: '🍷', allowMultiple: true, allowCustom: true, options: [] },
+      { stepName: 'activities', title: 'Activités', emoji: '🏖️', allowMultiple: true, allowCustom: true, options: [] },
+      { stepName: 'budget', title: 'Budget', emoji: '💰', allowMultiple: false, allowCustom: false, options: [] },
+      { stepName: 'items', title: 'Objets à prévoir', emoji: '🧴', allowMultiple: true, allowCustom: true, options: [] }
+    ];
+  } catch (error) {
+    console.error('Error loading question configuration:', error);
+    return [];
+  }
 }

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import Header from '@/components/Header';
 import PreferencesForm from '@/components/PreferencesForm';
@@ -65,6 +64,16 @@ const Index = () => {
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold mb-2">Préférences pour le voyage 🏝️</h2>
                 <p className="text-muted-foreground">Aide-nous à organiser le séjour idéal en Corse !</p>
+                
+                <div className="mt-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.open('/management', '_blank')}
+                  >
+                    🛠️ Interface de gestion
+                  </Button>
+                </div>
               </div>
               
               <PreferencesForm onComplete={handleFormComplete} />
@@ -84,6 +93,13 @@ const Index = () => {
                   variant={showCalendar ? "default" : "outline"}
                 >
                   {showCalendar ? 'Masquer le calendrier' : 'Voir le calendrier'}
+                </Button>
+                
+                <Button 
+                  onClick={() => window.open('/management', '_blank')}
+                  variant="outline"
+                >
+                  Interface de gestion
                 </Button>
                 
                 <Button 
