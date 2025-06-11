@@ -1,10 +1,11 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { FormOption } from '@/lib/types';
+import { FormOption, StepName } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { getGlobalCustomOptions, saveCustomOption } from '@/lib/logic';
 
 interface FormStepProps {
   title: string;
@@ -18,6 +19,8 @@ interface FormStepProps {
   allowCustom?: boolean;
   isLast?: boolean;
   isFirst?: boolean;
+  stepName: StepName;
+  currentUser?: string;
 }
 
 const FormStep = ({
@@ -32,9 +35,17 @@ const FormStep = ({
   allowCustom = false,
   isLast = false,
   isFirst = false,
+  stepName,
+  currentUser,
 }: FormStepProps) => {
   const [customOption, setCustomOption] = useState('');
-  const [customOptions, setCustomOptions] = useState<FormOption[]>([]);
+  const [globalCustomOptions, setGlobalCustomOptions] = useState<FormOption[]>([]);
+
+  useEffect(() => {
+    // Load global custom options for this step
+    const customOpts = getGlobalCustomOptions(stepName);
+    setGlobalCustomOptions(customOpts);
+  }, [stepName]);
 
   const handleSelect = (id: string) => {
     if (allowMultiple) {
@@ -51,18 +62,27 @@ const FormStep = ({
   };
 
   const addCustomOption = () => {
-    if (customOption.trim() === '') return;
+    if (customOption.trim() === '' || !currentUser) return;
     
-    const newOption = {
-      id: `custom-${Date.now()}`,
+    const newOption: FormOption = {
+      id: `custom-${stepName}-${Date.now()}`,
       label: customOption,
-      emoji: '✨'
+      emoji: '✨',
+      addedBy: currentUser
     };
     
-    setCustomOptions([...customOptions, newOption]);
+    // Save the custom option globally
+    saveCustomOption(currentUser, stepName, newOption);
+    
+    // Update local state
+    setGlobalCustomOptions([...globalCustomOptions, newOption]);
+    
+    // Select the new option
     onChange([...selectedValues, newOption.id]);
     setCustomOption('');
   };
+
+  const allOptions = [...options, ...globalCustomOptions];
 
   return (
     <div className="form-step">
@@ -71,28 +91,35 @@ const FormStep = ({
       </h2>
       
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {[...options, ...customOptions].map(option => (
+        {allOptions.map(option => (
           <div
             key={option.id}
             className={cn(
-              "border rounded-lg p-3 flex items-center cursor-pointer transition-all",
+              "border rounded-lg p-3 flex flex-col cursor-pointer transition-all",
               selectedValues.includes(option.id) 
                 ? "border-primary bg-primary/10" 
                 : "border-gray-200 hover:border-gray-300"
             )}
             onClick={() => handleSelect(option.id)}
           >
-            {option.emoji && (
-              <span className="text-xl mr-2" aria-hidden="true">
-                {option.emoji}
-              </span>
+            <div className="flex items-center">
+              {option.emoji && (
+                <span className="text-xl mr-2" aria-hidden="true">
+                  {option.emoji}
+                </span>
+              )}
+              <span className="flex-1">{option.label}</span>
+            </div>
+            {option.addedBy && (
+              <div className="text-xs text-muted-foreground mt-1">
+                ajouté par {option.addedBy}
+              </div>
             )}
-            <span>{option.label}</span>
           </div>
         ))}
       </div>
       
-      {allowCustom && (
+      {allowCustom && currentUser && (
         <div className="mt-4 flex items-center gap-2">
           <Input 
             value={customOption}

@@ -13,6 +13,7 @@ export interface UserPreferences {
   budget: string;
   items: string[];
   customMessage?: string;
+  customOptions?: { [stepName: string]: FormOption[] };
 }
 
 export interface AttendanceInfo {
@@ -27,6 +28,7 @@ export interface FormOption {
   id: string;
   label: string;
   emoji?: string;
+  addedBy?: string;
 }
 
 export type StepName = 

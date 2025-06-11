@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { StepName, UserPreferences } from '@/lib/types';
 import { saveUserPreferences, getUserPreferences, generatePersonalizedMessage } from '@/lib/logic';
@@ -146,6 +145,8 @@ const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
               allowMultiple={true}
               allowCustom={true}
               isFirst={true}
+              stepName="meals"
+              currentUser={selectedUser || undefined}
             />
           </div>
         );
@@ -163,6 +164,8 @@ const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
               onPrev={handlePrevStep}
               allowMultiple={true}
               allowCustom={true}
+              stepName="allergies"
+              currentUser={selectedUser || undefined}
             />
           </div>
         );
@@ -180,6 +183,8 @@ const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
               onPrev={handlePrevStep}
               allowMultiple={true}
               allowCustom={false}
+              stepName="breakfast"
+              currentUser={selectedUser || undefined}
             />
           </div>
         );
@@ -197,6 +202,8 @@ const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
               onPrev={handlePrevStep}
               allowMultiple={true}
               allowCustom={true}
+              stepName="drinks"
+              currentUser={selectedUser || undefined}
             />
           </div>
         );
@@ -214,6 +221,8 @@ const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
               onPrev={handlePrevStep}
               allowMultiple={true}
               allowCustom={true}
+              stepName="activities"
+              currentUser={selectedUser || undefined}
             />
           </div>
         );
@@ -231,6 +240,8 @@ const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
               onPrev={handlePrevStep}
               allowMultiple={false}
               allowCustom={false}
+              stepName="budget"
+              currentUser={selectedUser || undefined}
             />
           </div>
         );
@@ -248,6 +259,8 @@ const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
               onPrev={handlePrevStep}
               allowMultiple={true}
               allowCustom={true}
+              stepName="items"
+              currentUser={selectedUser || undefined}
             />
           </div>
         );

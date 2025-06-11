@@ -1,5 +1,5 @@
 
-import { UserPreferences } from "./types";
+import { UserPreferences, FormOption } from "./types";
 
 export function generatePersonalizedMessage(preferences: UserPreferences): string {
   const { meals, drinks, activities, budget } = preferences;
@@ -58,6 +58,66 @@ export function getUserPreferences(userName: string): UserPreferences | null {
   } catch (error) {
     console.error('Error retrieving user preferences:', error);
     return null;
+  }
+}
+
+export function getGlobalCustomOptions(stepName: string): FormOption[] {
+  try {
+    const existingData = localStorage.getItem('corsicaTripUsers');
+    if (!existingData) return [];
+    
+    const usersData = JSON.parse(existingData);
+    const globalOptions: FormOption[] = [];
+    
+    // Collect all custom options for this step from all users
+    Object.values(usersData).forEach((userData: any) => {
+      if (userData.customOptions && userData.customOptions[stepName]) {
+        userData.customOptions[stepName].forEach((option: FormOption) => {
+          // Only add if not already in the list
+          if (!globalOptions.find(opt => opt.id === option.id)) {
+            globalOptions.push(option);
+          }
+        });
+      }
+    });
+    
+    return globalOptions;
+  } catch (error) {
+    console.error('Error retrieving global custom options:', error);
+    return [];
+  }
+}
+
+export function saveCustomOption(userName: string, stepName: string, option: FormOption): void {
+  try {
+    const existingData = localStorage.getItem('corsicaTripUsers');
+    const usersData = existingData ? JSON.parse(existingData) : {};
+    
+    if (!usersData[userName]) {
+      usersData[userName] = {
+        meals: [],
+        allergies: [],
+        breakfast: [],
+        drinks: [],
+        activities: [],
+        budget: "",
+        items: [],
+        customOptions: {}
+      };
+    }
+    
+    if (!usersData[userName].customOptions) {
+      usersData[userName].customOptions = {};
+    }
+    
+    if (!usersData[userName].customOptions[stepName]) {
+      usersData[userName].customOptions[stepName] = [];
+    }
+    
+    usersData[userName].customOptions[stepName].push(option);
+    localStorage.setItem('corsicaTripUsers', JSON.stringify(usersData));
+  } catch (error) {
+    console.error('Error saving custom option:', error);
   }
 }
 
