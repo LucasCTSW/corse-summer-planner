@@ -1,19 +1,25 @@
 import { UserPreferences, FormOption } from "./types";
 
+// Phrases génériques
+const genericMessages = [
+  "Merci pour tes réponses, camarade de fun ! On se retrouve sur la plage 🌴😎",
+  "Au top, t'es prêt pour les vacances loulou ! 🏖️🤟",
+  "Ok pelo, rendez-vous dans quelques jours pour le décollage 🚀",
+  "C'est validé ! Prépare la crème solaire et la playlist, ça va envoyer 🔥",
+  "Merci chef, y'a plus qu'à tout réserver. On compte sur toi pour l'ambiance ! 🍹",
+  "Bravo, tu viens d'obtenir le badge \"vacancier officiel\" 🥇😜",
+  "Let's go ! Avec toi dans l'équipe, c'est sûr qu'on va pas s'ennuyer 😏",
+  "Trop bien, les vacances approchent, plus qu'à attendre le top départ ! ⏰🌅",
+  "Good job, maintenant on laisse le destin (et le groupe WhatsApp) faire le reste 📲😅",
+  "Formulaire plié, t'as géré comme un chef. La suite au prochain épisode ! 🍿"
+];
+
 export function generatePersonalizedMessage(preferences: UserPreferences): string {
-  const { meals, drinks, activities, budget } = preferences;
+  const { meals, drinks, activities, budget, allergies } = preferences;
   
-  // Check for special combinations
-  if (drinks.includes("rose") && meals.includes("raclette") && drinks.includes("jagermeister")) {
-    return "Prévois un foie de secours 🍻";
-  }
-  
-  if (meals.length === 0 && drinks.length === 0 && activities.length === 0 && !budget) {
-    return "T'as coché quoi en fait ? 😂";
-  }
-  
-  if (meals.length >= 5 && drinks.length >= 5 && activities.length >= 5) {
-    return "Tu veux pas qu'on parte avec un traiteur aussi ? 😅";
+  // Vérifications pour phrases personnalisées
+  if (budget === "splurge" && meals.includes("raclette")) {
+    return "Ça marche Jeff Bezos 🤑";
   }
   
   if (budget === "tight" && !activities.includes("chill")) {
@@ -24,8 +30,41 @@ export function generatePersonalizedMessage(preferences: UserPreferences): strin
     return "Des vacances à la cool 🍻";
   }
   
-  // Default message
-  return "Ton profil est enregistré ! À bientôt en Corse ! 🏝️";
+  if (meals.length >= 5 && drinks.length >= 5 && activities.length >= 5) {
+    return "Tu veux pas qu'on partir avec un traiteur aussi ? 😅";
+  }
+  
+  if (meals.length === 0 && drinks.length === 0 && activities.length === 0 && !budget) {
+    return "T'as coché quoi en fait ? 😂";
+  }
+  
+  if (budget === "splurge" && meals.includes("bbq") && drinks.includes("beer")) {
+    return "On prévoit un food truck et un bar à cocktails aussi ? 🍔🍹";
+  }
+  
+  if (budget === "tight" && meals.includes("raclette") && allergies.length >= 3) {
+    return "Raclette sans fromage, pain, ni charcut'… ça va finir en soirée salade verte ! 🥗😂";
+  }
+  
+  if (activities.includes("chill") && activities.length === 1) {
+    return "On te réserve un transat ou une chambre au spa ? 🧘‍♂️😴";
+  }
+  
+  if (allergies.length >= 4) {
+    return "Préviens le SAMU, on sait jamais… 🚑😂";
+  }
+  
+  if (activities.includes("chill") && meals.length <= 1 && activities.length <= 2) {
+    return "Programme : sieste, apéro, et re-sieste. T'es là pour le concours du plus gros dormeur ? 😴🍹";
+  }
+  
+  if (activities.includes("boat") && budget === "tight") {
+    return "On va pagayer ou c'est pédalo collectif ? 🛶";
+  }
+  
+  // Si aucune condition spéciale n'est remplie, retourner un message générique aléatoire
+  const randomIndex = Math.floor(Math.random() * genericMessages.length);
+  return genericMessages[randomIndex];
 }
 
 export function saveUserPreferences(userName: string, preferences: UserPreferences): void {

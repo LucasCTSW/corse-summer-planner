@@ -6,7 +6,7 @@ import UserSelection from './UserSelection';
 import FormStep from './FormStep';
 
 interface PreferencesFormProps {
-  onComplete: () => void;
+  onComplete: (userData: any) => void;
 }
 
 const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
@@ -21,7 +21,6 @@ const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
     budget: '',
     items: [],
   });
-  const [completed, setCompleted] = useState(false);
   const [personalizedMessage, setPersonalizedMessage] = useState('');
   const [direction, setDirection] = useState<'forward' | 'backward'>('forward');
 
@@ -72,13 +71,13 @@ const PreferencesForm = ({ onComplete }: PreferencesFormProps) => {
         break;
       case 'summary':
         if (selectedUser) {
-          saveUserPreferences(selectedUser, {
+          const userData = {
             ...preferences,
             customMessage: personalizedMessage,
-          });
+          };
+          saveUserPreferences(selectedUser, userData);
+          onComplete(userData);
         }
-        setCompleted(true);
-        onComplete();
         break;
       default:
         break;

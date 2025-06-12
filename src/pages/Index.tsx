@@ -1,57 +1,42 @@
+
 import { useState } from 'react';
 import Header from '@/components/Header';
 import PreferencesForm from '@/components/PreferencesForm';
-import AttendanceCalendar from '@/components/AttendanceCalendar';
 import { Button } from '@/components/ui/button';
 import { exportAllData, resetUserPreferences } from '@/lib/logic';
 
 const Index = () => {
   const [formCompleted, setFormCompleted] = useState(false);
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [showAdmin, setShowAdmin] = useState(false);
-  const [adminPassword, setAdminPassword] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [exportedData, setExportedData] = useState('');
-  const [resetUser, setResetUser] = useState('');
+  const [completedUserData, setCompletedUserData] = useState<any>(null);
   
-  const handleFormComplete = () => {
+  const handleFormComplete = (userData: any) => {
     setFormCompleted(true);
-    setShowCalendar(true);
+    setCompletedUserData(userData);
   };
   
   const handleStartOver = () => {
     setFormCompleted(false);
-    setShowCalendar(false);
-    setShowAdmin(false);
-    setIsAuthenticated(false);
-    setExportedData('');
+    setCompletedUserData(null);
   };
 
-  const handleAdminAuth = () => {
-    // Simple admin auth (password: "admin")
-    if (adminPassword === 'admin') {
-      setIsAuthenticated(true);
-      setExportedData(exportAllData());
-    }
+  const getActivityStats = () => {
+    if (!completedUserData) return null;
+    
+    const stats = {
+      totalChoices: 0,
+      categories: {
+        meals: completedUserData.meals?.length || 0,
+        drinks: completedUserData.drinks?.length || 0,
+        activities: completedUserData.activities?.length || 0,
+        items: completedUserData.items?.length || 0,
+      }
+    };
+    
+    stats.totalChoices = Object.values(stats.categories).reduce((a, b) => a + b, 0);
+    return stats;
   };
 
-  const handleResetUser = () => {
-    if (resetUser) {
-      resetUserPreferences(resetUser);
-      setResetUser('');
-      setExportedData(exportAllData());
-    }
-  };
-
-  const downloadData = () => {
-    const blob = new Blob([exportedData], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'corsica_trip_data.json';
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  const stats = getActivityStats();
   
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -64,111 +49,44 @@ const Index = () => {
               <div className="text-center mb-8">
                 <h2 className="text-2xl font-bold mb-2">Préférences pour le voyage 🏝️</h2>
                 <p className="text-muted-foreground">Aide-nous à organiser le séjour idéal en Corse !</p>
-                
-                <div className="mt-4">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => window.open('/management', '_blank')}
-                  >
-                    🛠️ Interface de gestion
-                  </Button>
-                </div>
               </div>
               
               <PreferencesForm onComplete={handleFormComplete} />
             </div>
           ) : (
-            <div className="mb-10 text-center">
-              <h2 className="text-2xl font-bold mb-2">Merci pour tes choix !</h2>
-              <p className="text-muted-foreground mb-6">Tes préférences ont été enregistrées.</p>
+            <div className="mb-10 text-center max-w-2xl mx-auto">
+              <div className="bg-corsica-sand/30 rounded-lg p-8 mb-6">
+                <h2 className="text-2xl font-bold mb-4">🎉 Merci pour tes réponses !</h2>
+                
+                <div className="text-lg mb-6">
+                  {completedUserData?.customMessage}
+                </div>
+                
+                {stats && (
+                  <div className="bg-white/50 rounded-lg p-4 mb-4">
+                    <h3 className="font-semibold mb-3">📊 Tes stats</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium">Total choix :</span> {stats.totalChoices}
+                      </div>
+                      <div>
+                        <span className="font-medium">🍽️ Plats :</span> {stats.categories.meals}
+                      </div>
+                      <div>
+                        <span className="font-medium">🍷 Boissons :</span> {stats.categories.drinks}
+                      </div>
+                      <div>
+                        <span className="font-medium">🏖️ Activités :</span> {stats.categories.activities}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
               
               <div className="flex flex-wrap justify-center gap-4">
                 <Button onClick={handleStartOver} variant="outline">
                   Recommencer
                 </Button>
-                
-                <Button 
-                  onClick={() => setShowCalendar(!showCalendar)}
-                  variant={showCalendar ? "default" : "outline"}
-                >
-                  {showCalendar ? 'Masquer le calendrier' : 'Voir le calendrier'}
-                </Button>
-                
-                <Button 
-                  onClick={() => window.open('/management', '_blank')}
-                  variant="outline"
-                >
-                  Interface de gestion
-                </Button>
-                
-                <Button 
-                  onClick={() => setShowAdmin(!showAdmin)}
-                  variant={showAdmin ? "default" : "outline"}
-                >
-                  {showAdmin ? 'Masquer' : 'Admin'}
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          {showCalendar && (
-            <div className="mb-10">
-              <AttendanceCalendar />
-            </div>
-          )}
-          
-          {showAdmin && (
-            <div className="mb-10 max-w-2xl mx-auto">
-              <div className="bg-card p-6 rounded-lg border shadow-sm">
-                <h3 className="text-xl font-bold mb-4">Interface Admin</h3>
-                
-                {!isAuthenticated ? (
-                  <div className="flex items-center gap-2">
-                    <input 
-                      type="password" 
-                      placeholder="Mot de passe" 
-                      className="border rounded-md px-3 py-2 flex-1"
-                      value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleAdminAuth();
-                        }
-                      }}
-                    />
-                    <Button onClick={handleAdminAuth}>
-                      Accéder
-                    </Button>
-                  </div>
-                ) : (
-                  <div>
-                    <h4 className="font-medium mb-2">Réinitialiser un utilisateur</h4>
-                    <div className="flex items-center gap-2 mb-6">
-                      <input 
-                        type="text" 
-                        placeholder="Prénom" 
-                        className="border rounded-md px-3 py-2 flex-1"
-                        value={resetUser}
-                        onChange={(e) => setResetUser(e.target.value)}
-                      />
-                      <Button onClick={handleResetUser} variant="destructive">
-                        Réinitialiser
-                      </Button>
-                    </div>
-                    
-                    <h4 className="font-medium mb-2">Données enregistrées</h4>
-                    <div className="mb-4">
-                      <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-60">
-                        {exportedData || '{}'} 
-                      </pre>
-                    </div>
-                    
-                    <Button onClick={downloadData}>
-                      Télécharger les données (JSON)
-                    </Button>
-                  </div>
-                )}
               </div>
             </div>
           )}
