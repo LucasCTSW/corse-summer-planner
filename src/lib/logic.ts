@@ -1,5 +1,4 @@
-
-import { UserPreferences, FormOption } from "./types";
+import { UserPreferences, FormOption, StepName } from "./types";
 
 // Phrases génériques
 const genericMessages = [
@@ -63,6 +62,20 @@ export function generatePersonalizedMessage(preferences: UserPreferences): strin
     return "On va pagayer ou c'est pédalo collectif ? 🛶";
   }
   
+  // Phrases génériques
+  const genericMessages = [
+    "Merci pour tes réponses, camarade de fun ! On se retrouve sur la plage 🌴😎",
+    "Au top, t'es prêt pour les vacances loulou ! 🏖️🤟",
+    "Ok pelo, rendez-vous dans quelques jours pour le décollage 🚀",
+    "C'est validé ! Prépare la crème solaire et la playlist, ça va envoyer 🔥",
+    "Merci chef, y'a plus qu'à tout réserver. On compte sur toi pour l'ambiance ! 🍹",
+    "Bravo, tu viens d'obtenir le badge \"vacancier officiel\" 🥇😜",
+    "Let's go ! Avec toi dans l'équipe, c'est sûr qu'on va pas s'ennuyer 😏",
+    "Trop bien, les vacances approchent, plus qu'à attendre le top départ ! ⏰🌅",
+    "Good job, maintenant on laisse le destin (et le groupe WhatsApp) faire le reste 📲😅",
+    "Formulaire plié, t'as géré comme un chef. La suite au prochain épisode ! 🍿"
+  ];
+  
   // Si aucune condition spéciale n'est remplie, retourner un message générique aléatoire
   const randomIndex = Math.floor(Math.random() * genericMessages.length);
   return genericMessages[randomIndex];
@@ -70,18 +83,17 @@ export function generatePersonalizedMessage(preferences: UserPreferences): strin
 
 export function saveUserPreferences(userName: string, preferences: UserPreferences): void {
   try {
-    // Get existing data or initialize empty object
+    console.log('Saving preferences for user:', userName, preferences);
     const existingData = localStorage.getItem('corsicaTripUsers');
     const usersData = existingData ? JSON.parse(existingData) : {};
     
-    // Update or add user preferences
     usersData[userName] = {
       ...preferences,
       customMessage: generatePersonalizedMessage(preferences)
     };
     
-    // Save back to localStorage
     localStorage.setItem('corsicaTripUsers', JSON.stringify(usersData));
+    console.log('Preferences saved successfully');
   } catch (error) {
     console.error('Error saving user preferences:', error);
   }
@@ -102,17 +114,19 @@ export function getUserPreferences(userName: string): UserPreferences | null {
 
 export function getGlobalCustomOptions(stepName: string): FormOption[] {
   try {
+    console.log('Getting global custom options for step:', stepName);
     const existingData = localStorage.getItem('corsicaTripUsers');
-    if (!existingData) return [];
+    if (!existingData) {
+      console.log('No existing data found');
+      return [];
+    }
     
     const usersData = JSON.parse(existingData);
     const globalOptions: FormOption[] = [];
     
-    // Collect all custom options for this step from all users
     Object.values(usersData).forEach((userData: any) => {
       if (userData.customOptions && userData.customOptions[stepName]) {
         userData.customOptions[stepName].forEach((option: FormOption) => {
-          // Only add if not already in the list
           if (!globalOptions.find(opt => opt.id === option.id)) {
             globalOptions.push(option);
           }
@@ -120,6 +134,7 @@ export function getGlobalCustomOptions(stepName: string): FormOption[] {
       }
     });
     
+    console.log('Found global custom options:', globalOptions);
     return globalOptions;
   } catch (error) {
     console.error('Error retrieving global custom options:', error);
@@ -129,6 +144,7 @@ export function getGlobalCustomOptions(stepName: string): FormOption[] {
 
 export function saveCustomOption(userName: string, stepName: string, option: FormOption): void {
   try {
+    console.log('Saving custom option:', { userName, stepName, option });
     const existingData = localStorage.getItem('corsicaTripUsers');
     const usersData = existingData ? JSON.parse(existingData) : {};
     
@@ -155,6 +171,7 @@ export function saveCustomOption(userName: string, stepName: string, option: For
     
     usersData[userName].customOptions[stepName].push(option);
     localStorage.setItem('corsicaTripUsers', JSON.stringify(usersData));
+    console.log('Custom option saved successfully');
   } catch (error) {
     console.error('Error saving custom option:', error);
   }
@@ -162,20 +179,24 @@ export function saveCustomOption(userName: string, stepName: string, option: For
 
 export function deleteOptionFromQuestion(questionStepName: string, optionId: string): void {
   try {
-    // Remove from question configuration
+    console.log('Deleting option:', { questionStepName, optionId });
+    
+    // Remove from question configuration (admin-added options)
     const questions = getQuestionConfiguration();
     const updatedQuestions = questions.map(q => {
       if (q.stepName === questionStepName) {
+        const filteredOptions = q.options.filter(opt => opt.id !== optionId);
+        console.log('Filtered admin options:', filteredOptions);
         return {
           ...q,
-          options: q.options.filter(opt => opt.id !== optionId)
+          options: filteredOptions
         };
       }
       return q;
     });
     saveQuestionConfiguration(updatedQuestions);
 
-    // Remove from all user preferences
+    // Remove from all user preferences and custom options
     const existingData = localStorage.getItem('corsicaTripUsers');
     if (existingData) {
       const usersData = JSON.parse(existingData);
@@ -197,6 +218,7 @@ export function deleteOptionFromQuestion(questionStepName: string, optionId: str
       });
       
       localStorage.setItem('corsicaTripUsers', JSON.stringify(usersData));
+      console.log('Option deleted from all user data');
     }
   } catch (error) {
     console.error('Error deleting option from question:', error);
@@ -205,6 +227,7 @@ export function deleteOptionFromQuestion(questionStepName: string, optionId: str
 
 export function addOptionToQuestion(questionStepName: string, option: FormOption): void {
   try {
+    console.log('Adding option to question:', { questionStepName, option });
     const questions = getQuestionConfiguration();
     const updatedQuestions = questions.map(q => {
       if (q.stepName === questionStepName) {
@@ -216,6 +239,7 @@ export function addOptionToQuestion(questionStepName: string, option: FormOption
       return q;
     });
     saveQuestionConfiguration(updatedQuestions);
+    console.log('Option added to question configuration');
   } catch (error) {
     console.error('Error adding option to question:', error);
   }
@@ -266,6 +290,7 @@ export function formatCountdown(time: { days: number; hours: number; minutes: nu
 
 export function saveQuestionConfiguration(questions: any[]): void {
   try {
+    console.log('Saving question configuration:', questions);
     localStorage.setItem('corsicaTripQuestions', JSON.stringify(questions));
   } catch (error) {
     console.error('Error saving question configuration:', error);
@@ -276,11 +301,13 @@ export function getQuestionConfiguration(): any[] {
   try {
     const saved = localStorage.getItem('corsicaTripQuestions');
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      console.log('Loaded question configuration:', parsed);
+      return parsed;
     }
     
     // Configuration par défaut
-    return [
+    const defaultConfig = [
       { stepName: 'meals', title: 'Plats préférés', emoji: '🍽️', allowMultiple: true, allowCustom: true, options: [] },
       { stepName: 'allergies', title: 'Allergies', emoji: '🚫', allowMultiple: true, allowCustom: true, options: [] },
       { stepName: 'breakfast', title: 'Petit-déjeuner', emoji: '🥐', allowMultiple: true, allowCustom: false, options: [] },
@@ -289,6 +316,8 @@ export function getQuestionConfiguration(): any[] {
       { stepName: 'budget', title: 'Budget', emoji: '💰', allowMultiple: false, allowCustom: false, options: [] },
       { stepName: 'items', title: 'Objets à prévoir', emoji: '🧴', allowMultiple: true, allowCustom: true, options: [] }
     ];
+    console.log('Using default configuration:', defaultConfig);
+    return defaultConfig;
   } catch (error) {
     console.error('Error loading question configuration:', error);
     return [];

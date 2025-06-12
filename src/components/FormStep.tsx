@@ -42,27 +42,36 @@ const FormStep = ({
   const [allAvailableOptions, setAllAvailableOptions] = useState<FormOption[]>([]);
 
   useEffect(() => {
-    // Load all available options: default + admin-added + user-added
     const loadAllOptions = () => {
+      console.log('Loading options for step:', stepName);
+      
+      // Get admin-configured options
       const questions = getQuestionConfiguration();
       const currentQuestion = questions.find(q => q.stepName === stepName);
       const adminOptions = currentQuestion?.options || [];
+      console.log('Admin options:', adminOptions);
       
+      // Get user-added custom options
       const userCustomOptions = getGlobalCustomOptions(stepName);
+      console.log('User custom options:', userCustomOptions);
       
-      // Combine all options, ensuring no duplicates
+      // Combine default options + admin options + user custom options
       const combined = [...options, ...adminOptions, ...userCustomOptions];
+      console.log('Combined options before dedup:', combined);
+      
+      // Remove duplicates based on ID
       const unique = combined.filter((option, index, self) => 
         index === self.findIndex(o => o.id === option.id)
       );
+      console.log('Final unique options:', unique);
       
       setAllAvailableOptions(unique);
     };
 
     loadAllOptions();
     
-    // Set up interval to refresh options (in case admin adds options)
-    const interval = setInterval(loadAllOptions, 2000);
+    // Refresh options every 3 seconds to catch admin changes
+    const interval = setInterval(loadAllOptions, 3000);
     
     return () => clearInterval(interval);
   }, [stepName, options]);
@@ -77,7 +86,7 @@ const FormStep = ({
         onChange([...selectedValues, id]);
       }
     } else {
-      onChange([id]); // Single selection mode
+      onChange([id]);
     }
   };
 
@@ -85,17 +94,19 @@ const FormStep = ({
     if (customOption.trim() === '' || !currentUser) return;
     
     const newOption: FormOption = {
-      id: `custom-${stepName}-${Date.now()}`,
-      label: customOption,
+      id: `custom-${stepName}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      label: customOption.trim(),
       emoji: '✨',
       addedBy: currentUser
     };
     
+    console.log('Adding new custom option:', newOption);
+    
     // Save the custom option globally
     saveCustomOption(currentUser, stepName, newOption);
     
-    // Update local state
-    setAllAvailableOptions([...allAvailableOptions, newOption]);
+    // Update local state immediately
+    setAllAvailableOptions(prev => [...prev, newOption]);
     
     // Select the new option
     onChange([...selectedValues, newOption.id]);
