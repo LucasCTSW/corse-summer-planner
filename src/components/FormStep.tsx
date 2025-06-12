@@ -5,7 +5,7 @@ import { FormOption, StepName } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getGlobalCustomOptions, saveCustomOption } from '@/lib/logic';
+import { getGlobalCustomOptions, saveCustomOption, getQuestionConfiguration } from '@/lib/logic';
 
 interface FormStepProps {
   title: string;
@@ -39,13 +39,33 @@ const FormStep = ({
   currentUser,
 }: FormStepProps) => {
   const [customOption, setCustomOption] = useState('');
-  const [globalCustomOptions, setGlobalCustomOptions] = useState<FormOption[]>([]);
+  const [allAvailableOptions, setAllAvailableOptions] = useState<FormOption[]>([]);
 
   useEffect(() => {
-    // Load global custom options for this step
-    const customOpts = getGlobalCustomOptions(stepName);
-    setGlobalCustomOptions(customOpts);
-  }, [stepName]);
+    // Load all available options: default + admin-added + user-added
+    const loadAllOptions = () => {
+      const questions = getQuestionConfiguration();
+      const currentQuestion = questions.find(q => q.stepName === stepName);
+      const adminOptions = currentQuestion?.options || [];
+      
+      const userCustomOptions = getGlobalCustomOptions(stepName);
+      
+      // Combine all options, ensuring no duplicates
+      const combined = [...options, ...adminOptions, ...userCustomOptions];
+      const unique = combined.filter((option, index, self) => 
+        index === self.findIndex(o => o.id === option.id)
+      );
+      
+      setAllAvailableOptions(unique);
+    };
+
+    loadAllOptions();
+    
+    // Set up interval to refresh options (in case admin adds options)
+    const interval = setInterval(loadAllOptions, 2000);
+    
+    return () => clearInterval(interval);
+  }, [stepName, options]);
 
   const handleSelect = (id: string) => {
     if (allowMultiple) {
@@ -75,14 +95,12 @@ const FormStep = ({
     saveCustomOption(currentUser, stepName, newOption);
     
     // Update local state
-    setGlobalCustomOptions([...globalCustomOptions, newOption]);
+    setAllAvailableOptions([...allAvailableOptions, newOption]);
     
     // Select the new option
     onChange([...selectedValues, newOption.id]);
     setCustomOption('');
   };
-
-  const allOptions = [...options, ...globalCustomOptions];
 
   return (
     <div className="form-step">
@@ -91,7 +109,7 @@ const FormStep = ({
       </h2>
       
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {allOptions.map(option => (
+        {allAvailableOptions.map(option => (
           <div
             key={option.id}
             className={cn(

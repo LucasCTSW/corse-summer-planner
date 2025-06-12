@@ -1,3 +1,4 @@
+
 import { UserPreferences, FormOption } from "./types";
 
 // Phrases génériques
@@ -156,6 +157,67 @@ export function saveCustomOption(userName: string, stepName: string, option: For
     localStorage.setItem('corsicaTripUsers', JSON.stringify(usersData));
   } catch (error) {
     console.error('Error saving custom option:', error);
+  }
+}
+
+export function deleteOptionFromQuestion(questionStepName: string, optionId: string): void {
+  try {
+    // Remove from question configuration
+    const questions = getQuestionConfiguration();
+    const updatedQuestions = questions.map(q => {
+      if (q.stepName === questionStepName) {
+        return {
+          ...q,
+          options: q.options.filter(opt => opt.id !== optionId)
+        };
+      }
+      return q;
+    });
+    saveQuestionConfiguration(updatedQuestions);
+
+    // Remove from all user preferences
+    const existingData = localStorage.getItem('corsicaTripUsers');
+    if (existingData) {
+      const usersData = JSON.parse(existingData);
+      
+      Object.keys(usersData).forEach(userName => {
+        const userData = usersData[userName];
+        
+        // Remove from user's selections
+        if (userData[questionStepName] && Array.isArray(userData[questionStepName])) {
+          userData[questionStepName] = userData[questionStepName].filter((id: string) => id !== optionId);
+        }
+        
+        // Remove from user's custom options
+        if (userData.customOptions && userData.customOptions[questionStepName]) {
+          userData.customOptions[questionStepName] = userData.customOptions[questionStepName].filter(
+            (opt: FormOption) => opt.id !== optionId
+          );
+        }
+      });
+      
+      localStorage.setItem('corsicaTripUsers', JSON.stringify(usersData));
+    }
+  } catch (error) {
+    console.error('Error deleting option from question:', error);
+  }
+}
+
+export function addOptionToQuestion(questionStepName: string, option: FormOption): void {
+  try {
+    const questions = getQuestionConfiguration();
+    const updatedQuestions = questions.map(q => {
+      if (q.stepName === questionStepName) {
+        return {
+          ...q,
+          options: [...q.options, option]
+        };
+      }
+      return q;
+    });
+    saveQuestionConfiguration(updatedQuestions);
+  } catch (error) {
+    console.error('Error adding option to question:', error);
   }
 }
 

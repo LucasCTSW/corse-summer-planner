@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Edit2, Plus, Download, RotateCcw, ChevronUp, ChevronDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { exportAllData, resetUserPreferences, saveQuestionConfiguration, getQuestionConfiguration } from '@/lib/logic';
+import { exportAllData, resetUserPreferences, saveQuestionConfiguration, getQuestionConfiguration, deleteOptionFromQuestion, addOptionToQuestion, getGlobalCustomOptions } from '@/lib/logic';
 import { FormOption, StepName } from '@/lib/types';
 import { userNames } from '@/lib/data';
 
@@ -125,28 +125,36 @@ const AdminManagement = () => {
     saveQuestionConfiguration(updatedQuestions);
   };
 
-  const addOptionToQuestion = (questionIndex: number, optionLabel: string) => {
+  const addOptionToQuestionHandler = (questionStepName: StepName, optionLabel: string) => {
     if (!optionLabel) return;
     
-    const newQuestions = [...questions];
     const newOption: FormOption = {
-      id: `option-${Date.now()}`,
+      id: `admin-${questionStepName}-${Date.now()}`,
       label: optionLabel,
-      emoji: '✨'
+      emoji: '⭐',
+      addedBy: 'Admin'
     };
     
-    newQuestions[questionIndex].options.push(newOption);
-    setQuestions(newQuestions);
-    saveQuestionConfiguration(newQuestions);
+    addOptionToQuestion(questionStepName, newOption);
+    loadQuestions(); // Refresh to show the new option
   };
 
-  const removeOptionFromQuestion = (questionIndex: number, optionId: string) => {
-    const newQuestions = [...questions];
-    newQuestions[questionIndex].options = newQuestions[questionIndex].options.filter(
-      opt => opt.id !== optionId
+  const deleteOptionFromQuestionHandler = (questionStepName: StepName, optionId: string) => {
+    deleteOptionFromQuestion(questionStepName, optionId);
+    loadQuestions(); // Refresh to remove the option
+    loadData(); // Refresh user data in case their selections were affected
+  };
+
+  const getAllOptionsForQuestion = (questionStepName: StepName): FormOption[] => {
+    const question = questions.find(q => q.stepName === questionStepName);
+    const adminOptions = question?.options || [];
+    const userCustomOptions = getGlobalCustomOptions(questionStepName);
+    
+    // Combine and deduplicate
+    const combined = [...adminOptions, ...userCustomOptions];
+    return combined.filter((option, index, self) => 
+      index === self.findIndex(o => o.id === option.id)
     );
-    setQuestions(newQuestions);
-    saveQuestionConfiguration(newQuestions);
   };
 
   const getUserCompletionStatus = (userName: string) => {
@@ -292,7 +300,7 @@ const AdminManagement = () => {
                         }}
                       />
                     </div>
-                    <Badge variant="secondary">{question.options.length} réponses</Badge>
+                    <Badge variant="secondary">{getAllOptionsForQuestion(question.stepName).length} réponses</Badge>
                     {!['meals', 'allergies', 'breakfast', 'drinks', 'activities', 'budget', 'items'].includes(question.stepName) && (
                       <Button
                         variant="outline"
@@ -311,7 +319,7 @@ const AdminManagement = () => {
 
         <TabsContent value="responses">
           <div className="grid gap-4">
-            {questions.map((question, questionIndex) => (
+            {questions.map((question) => (
               <Card key={question.stepName}>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -321,13 +329,17 @@ const AdminManagement = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {question.options.map(option => (
+                    {getAllOptionsForQuestion(question.stepName).map(option => (
                       <div key={option.id} className="flex items-center gap-2 bg-muted p-2 rounded">
                         <span>{option.emoji} {option.label}</span>
+                        {option.addedBy && (
+                          <span className="text-xs text-muted-foreground">({option.addedBy})</span>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeOptionFromQuestion(questionIndex, option.id)}
+                          onClick={() => deleteOptionFromQuestionHandler(question.stepName, option.id)}
+                          className="text-destructive hover:text-destructive"
                         >
                           <Trash2 className="h-3 w-3" />
                         </Button>
@@ -339,7 +351,7 @@ const AdminManagement = () => {
                       placeholder="Nouvelle réponse"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
-                          addOptionToQuestion(questionIndex, e.currentTarget.value);
+                          addOptionToQuestionHandler(question.stepName, e.currentTarget.value);
                           e.currentTarget.value = '';
                         }
                       }}
@@ -347,7 +359,7 @@ const AdminManagement = () => {
                     <Button
                       onClick={(e) => {
                         const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                        addOptionToQuestion(questionIndex, input.value);
+                        addOptionToQuestionHandler(question.stepName, input.value);
                         input.value = '';
                       }}
                     >
