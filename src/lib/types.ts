@@ -14,6 +14,7 @@ export interface UserPreferences {
   items: string[];
   customMessage?: string;
   customOptions?: { [stepName: string]: FormOption[] };
+  [key: string]: any; // Permet d'ajouter des propriétés dynamiques pour les questions personnalisées
 }
 
 export interface AttendanceInfo {
@@ -40,4 +41,5 @@ export type StepName =
   | 'activities'
   | 'budget'
   | 'items'
-  | 'summary';
+  | 'summary'
+  | string; // Permet les types personnalisés pour les nouvelles questions

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Edit2, Plus, Download, RotateCcw, ChevronUp, ChevronDown, Users, BarChart3 } from 'lucide-react';
+import { Toaster } from '@/components/ui/toaster';
+import { useToast } from "@/hooks/use-toast";
+import AdminSaveButton from '@/components/AdminSaveButton';
 import * as XLSX from 'xlsx';
 import { exportAllData, resetUserPreferences, saveQuestionConfiguration, getQuestionConfiguration, deleteOptionFromQuestion, addOptionToQuestion, getGlobalCustomOptions } from '@/lib/logic';
 import { FormOption, StepName } from '@/lib/types';
@@ -29,6 +31,7 @@ const AdminManagement = () => {
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [editingQuestion, setEditingQuestion] = useState<QuestionConfig | null>(null);
   const [newQuestionTitle, setNewQuestionTitle] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     loadData();
@@ -50,6 +53,16 @@ const AdminManagement = () => {
       options: q.options || []
     }));
     setQuestions(questionsWithOrder.sort((a, b) => a.order - b.order));
+  };
+
+  const saveQuestions = () => {
+    try {
+      saveQuestionConfiguration(questions);
+      console.log('Configuration sauvegardée:', questions);
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      throw error;
+    }
   };
 
   const exportToExcel = () => {
@@ -143,12 +156,19 @@ const AdminManagement = () => {
       });
       
       setQuestions(newQuestions);
-      saveQuestionConfiguration(newQuestions);
     }
   };
 
   const addNewQuestion = () => {
-    if (!newQuestionTitle) return;
+    if (!newQuestionTitle) {
+      toast({
+        title: "❌ Erreur",
+        description: "Veuillez saisir un titre pour la nouvelle question.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
     
     const newQuestion: QuestionConfig = {
       stepName: `custom-${Date.now()}` as StepName,
@@ -162,7 +182,6 @@ const AdminManagement = () => {
     
     const updatedQuestions = [...questions, newQuestion];
     setQuestions(updatedQuestions);
-    saveQuestionConfiguration(updatedQuestions);
     setNewQuestionTitle('');
     console.log('Nouvelle question ajoutée:', newQuestion);
   };
@@ -173,12 +192,19 @@ const AdminManagement = () => {
       q.order = index;
     });
     setQuestions(updatedQuestions);
-    saveQuestionConfiguration(updatedQuestions);
     console.log('Question supprimée:', stepName);
   };
 
   const addOptionToQuestionHandler = (questionStepName: StepName, optionLabel: string) => {
-    if (!optionLabel.trim()) return;
+    if (!optionLabel.trim()) {
+      toast({
+        title: "❌ Erreur",
+        description: "Veuillez saisir un libellé pour la nouvelle option.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
     
     const newOption: FormOption = {
       id: `admin-${questionStepName}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -253,6 +279,8 @@ const AdminManagement = () => {
 
   return (
     <div className="container mx-auto p-6">
+      <Toaster />
+      
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2">🛠️ Administration - Voyage Corse 2025</h1>
         <p className="text-muted-foreground">Interface de gestion complète</p>
@@ -459,7 +487,13 @@ const AdminManagement = () => {
         <TabsContent value="questions">
           <Card>
             <CardHeader>
-              <CardTitle>Gestion des questions</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                <span>Gestion des questions</span>
+                <AdminSaveButton 
+                  onSave={saveQuestions}
+                  variant="default"
+                />
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-2">
@@ -509,7 +543,6 @@ const AdminManagement = () => {
                             const newQuestions = [...questions];
                             newQuestions[index].title = e.target.value;
                             setQuestions(newQuestions);
-                            saveQuestionConfiguration(newQuestions);
                           }}
                         />
                       </div>
