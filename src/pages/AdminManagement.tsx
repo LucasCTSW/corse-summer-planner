@@ -65,136 +65,6 @@ const AdminManagement = () => {
     }
   };
 
-  const exportToExcel = () => {
-    console.log('Export Excel - données:', allData);
-    const workbook = XLSX.utils.book_new();
-    
-    // Créer une feuille de synthèse
-    const summaryData = [
-      ['Utilisateur', 'Plats', 'Allergies', 'Petit-déj', 'Boissons', 'Activités', 'Budget', 'Objets', 'Statut']
-    ];
-    
-    Object.entries(allData).forEach(([userName, userData]: [string, any]) => {
-      summaryData.push([
-        userName,
-        userData.meals?.join('; ') || '',
-        userData.allergies?.join('; ') || '',
-        userData.breakfast?.join('; ') || '',
-        userData.drinks?.join('; ') || '',
-        userData.activities?.join('; ') || '',
-        userData.budget || '',
-        userData.items?.join('; ') || '',
-        getUserCompletionStatus(userName)
-      ]);
-    });
-    
-    const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
-    XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Synthèse');
-    
-    // Créer une feuille par utilisateur
-    Object.entries(allData).forEach(([userName, userData]: [string, any]) => {
-      const worksheetData = [
-        ['Question', 'Réponse'],
-        ['Plats préférés', userData.meals?.join(', ') || ''],
-        ['Allergies', userData.allergies?.join(', ') || ''],
-        ['Petit-déjeuner', userData.breakfast?.join(', ') || ''],
-        ['Boissons', userData.drinks?.join(', ') || ''],
-        ['Activités', userData.activities?.join(', ') || ''],
-        ['Budget', userData.budget || ''],
-        ['Objets à prévoir', userData.items?.join(', ') || ''],
-        ['Message personnalisé', userData.customMessage || '']
-      ];
-      
-      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-      XLSX.utils.book_append_sheet(workbook, worksheet, userName);
-    });
-
-    // Créer une feuille de statistiques
-    const statsData = [['Question', 'Option', 'Nombre de réponses']];
-    questions.forEach(question => {
-      const allOptions = getAllOptionsForQuestion(question.stepName);
-      allOptions.forEach(option => {
-        const count = Object.values(allData).filter((userData: any) => {
-          const userAnswers = userData[question.stepName];
-          if (Array.isArray(userAnswers)) {
-            return userAnswers.includes(option.id);
-          }
-          return userAnswers === option.id;
-        }).length;
-        
-        if (count > 0) {
-          statsData.push([question.title, option.label, count.toString()]);
-        }
-      });
-    });
-    
-    const statsWorksheet = XLSX.utils.aoa_to_sheet(statsData);
-    XLSX.utils.book_append_sheet(workbook, statsWorksheet, 'Statistiques');
-
-    XLSX.writeFile(workbook, `voyage_corse_donnees_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
-  const handleResetUser = () => {
-    if (selectedUser) {
-      resetUserPreferences(selectedUser);
-      setSelectedUser('');
-      loadData();
-    }
-  };
-
-  const moveQuestion = (questionIndex: number, direction: 'up' | 'down') => {
-    const newQuestions = [...questions];
-    const targetIndex = direction === 'up' ? questionIndex - 1 : questionIndex + 1;
-    
-    if (targetIndex >= 0 && targetIndex < newQuestions.length) {
-      [newQuestions[questionIndex], newQuestions[targetIndex]] = 
-      [newQuestions[targetIndex], newQuestions[questionIndex]];
-      
-      // Mettre à jour les ordres
-      newQuestions.forEach((q, index) => {
-        q.order = index;
-      });
-      
-      setQuestions(newQuestions);
-    }
-  };
-
-  const addNewQuestion = () => {
-    if (!newQuestionTitle) {
-      toast({
-        title: "❌ Erreur",
-        description: "Veuillez saisir un titre pour la nouvelle question.",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-    
-    const newQuestion: QuestionConfig = {
-      stepName: `custom-${Date.now()}` as StepName,
-      title: newQuestionTitle,
-      emoji: '❓',
-      allowMultiple: true,
-      allowCustom: true,
-      order: questions.length,
-      options: []
-    };
-    
-    const updatedQuestions = [...questions, newQuestion];
-    setQuestions(updatedQuestions);
-    setNewQuestionTitle('');
-    console.log('Nouvelle question ajoutée:', newQuestion);
-  };
-
-  const deleteQuestion = (stepName: StepName) => {
-    const updatedQuestions = questions.filter(q => q.stepName !== stepName);
-    updatedQuestions.forEach((q, index) => {
-      q.order = index;
-    });
-    setQuestions(updatedQuestions);
-    console.log('Question supprimée:', stepName);
-  };
-
   const addOptionToQuestionHandler = (questionStepName: StepName, optionLabel: string) => {
     if (!optionLabel.trim()) {
       toast({
@@ -238,23 +108,35 @@ const AdminManagement = () => {
     );
   };
 
-  const getUserCompletionStatus = (userName: string) => {
-    const userData = allData[userName];
-    if (!userData) return 'Non commencé';
+  const getOptionLabel = (questionStepName: StepName, optionId: string): string => {
+    // Chercher dans toutes les options (admin + utilisateurs)
+    const allOptions = getAllOptionsForQuestion(questionStepName);
+    const option = allOptions.find(opt => opt.id === optionId);
     
-    const hasBasicData = userData.meals || userData.drinks || userData.activities || userData.budget;
-    if (!hasBasicData) return 'Non commencé';
-    
-    const requiredFields = ['meals', 'drinks', 'activities', 'budget'];
-    const completedFields = requiredFields.filter(field => 
-      userData[field] && (Array.isArray(userData[field]) ? userData[field].length > 0 : userData[field])
-    );
-    
-    if (completedFields.length === requiredFields.length && userData.customMessage) {
-      return 'Terminé';
-    } else {
-      return `En cours (${completedFields.length}/${requiredFields.length})`;
+    if (option) {
+      return option.label;
     }
+    
+    // Si pas trouvé, chercher dans les données brutes des utilisateurs
+    const existingData = localStorage.getItem('corsicaTripUsers');
+    if (existingData) {
+      const usersData = JSON.parse(existingData);
+      
+      for (const userData of Object.values(usersData)) {
+        const userDataTyped = userData as any;
+        if (userDataTyped.customOptions && userDataTyped.customOptions[questionStepName]) {
+          const customOption = userDataTyped.customOptions[questionStepName].find(
+            (opt: FormOption) => opt.id === optionId
+          );
+          if (customOption) {
+            return customOption.label;
+          }
+        }
+      }
+    }
+    
+    // Fallback: afficher l'ID si rien n'est trouvé
+    return optionId;
   };
 
   const getOptionStats = (questionStepName: StepName, optionId: string): number => {
@@ -265,16 +147,6 @@ const AdminManagement = () => {
       }
       return userAnswers === optionId;
     }).length;
-  };
-
-  const getTotalResponses = () => {
-    return Object.keys(allData).length;
-  };
-
-  const getCompletedResponses = () => {
-    return Object.keys(allData).filter(userName => 
-      getUserCompletionStatus(userName) === 'Terminé'
-    ).length;
   };
 
   return (
@@ -406,25 +278,37 @@ const AdminManagement = () => {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <strong>Plats:</strong> {userData.meals?.join(', ') || 'Aucun'}
+                      <strong>Plats:</strong> {userData.meals?.map((mealId: string) => 
+                        getOptionLabel('meals', mealId)
+                      ).join(', ') || 'Aucun'}
                     </div>
                     <div>
-                      <strong>Allergies:</strong> {userData.allergies?.join(', ') || 'Aucune'}
+                      <strong>Allergies:</strong> {userData.allergies?.map((allergyId: string) => 
+                        getOptionLabel('allergies', allergyId)
+                      ).join(', ') || 'Aucune'}
                     </div>
                     <div>
-                      <strong>Petit-déjeuner:</strong> {userData.breakfast?.join(', ') || 'Aucun'}
+                      <strong>Petit-déjeuner:</strong> {userData.breakfast?.map((breakfastId: string) => 
+                        getOptionLabel('breakfast', breakfastId)
+                      ).join(', ') || 'Aucun'}
                     </div>
                     <div>
-                      <strong>Boissons:</strong> {userData.drinks?.join(', ') || 'Aucune'}
+                      <strong>Boissons:</strong> {userData.drinks?.map((drinkId: string) => 
+                        getOptionLabel('drinks', drinkId)
+                      ).join(', ') || 'Aucune'}
                     </div>
                     <div>
-                      <strong>Activités:</strong> {userData.activities?.join(', ') || 'Aucune'}
+                      <strong>Activités:</strong> {userData.activities?.map((activityId: string) => 
+                        getOptionLabel('activities', activityId)
+                      ).join(', ') || 'Aucune'}
                     </div>
                     <div>
-                      <strong>Budget:</strong> {userData.budget || 'Non défini'}
+                      <strong>Budget:</strong> {userData.budget ? getOptionLabel('budget', userData.budget) : 'Non défini'}
                     </div>
                     <div>
-                      <strong>Objets:</strong> {userData.items?.join(', ') || 'Aucun'}
+                      <strong>Objets:</strong> {userData.items?.map((itemId: string) => 
+                        getOptionLabel('items', itemId)
+                      ).join(', ') || 'Aucun'}
                     </div>
                     <div>
                       <strong>Message:</strong> {userData.customMessage || 'Aucun'}
@@ -630,6 +514,165 @@ const AdminManagement = () => {
       </Tabs>
     </div>
   );
+
+  const exportToExcel = () => {
+    console.log('Export Excel - données:', allData);
+    const workbook = XLSX.utils.book_new();
+    
+    // Créer une feuille de synthèse
+    const summaryData = [
+      ['Utilisateur', 'Plats', 'Allergies', 'Petit-déj', 'Boissons', 'Activités', 'Budget', 'Objets', 'Statut']
+    ];
+    
+    Object.entries(allData).forEach(([userName, userData]: [string, any]) => {
+      summaryData.push([
+        userName,
+        userData.meals?.map((id: string) => getOptionLabel('meals', id)).join('; ') || '',
+        userData.allergies?.map((id: string) => getOptionLabel('allergies', id)).join('; ') || '',
+        userData.breakfast?.map((id: string) => getOptionLabel('breakfast', id)).join('; ') || '',
+        userData.drinks?.map((id: string) => getOptionLabel('drinks', id)).join('; ') || '',
+        userData.activities?.map((id: string) => getOptionLabel('activities', id)).join('; ') || '',
+        userData.budget ? getOptionLabel('budget', userData.budget) : '',
+        userData.items?.map((id: string) => getOptionLabel('items', id)).join('; ') || '',
+        getUserCompletionStatus(userName)
+      ]);
+    });
+    
+    const summaryWorksheet = XLSX.utils.aoa_to_sheet(summaryData);
+    XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Synthèse');
+    
+    // Créer une feuille par utilisateur
+    Object.entries(allData).forEach(([userName, userData]: [string, any]) => {
+      const worksheetData = [
+        ['Question', 'Réponse'],
+        ['Plats préférés', userData.meals?.map((id: string) => getOptionLabel('meals', id)).join(', ') || ''],
+        ['Allergies', userData.allergies?.map((id: string) => getOptionLabel('allergies', id)).join(', ') || ''],
+        ['Petit-déjeuner', userData.breakfast?.map((id: string) => getOptionLabel('breakfast', id)).join(', ') || ''],
+        ['Boissons', userData.drinks?.map((id: string) => getOptionLabel('drinks', id)).join(', ') || ''],
+        ['Activités', userData.activities?.map((id: string) => getOptionLabel('activities', id)).join(', ') || ''],
+        ['Budget', userData.budget ? getOptionLabel('budget', userData.budget) : ''],
+        ['Objets à prévoir', userData.items?.map((id: string) => getOptionLabel('items', id)).join(', ') || ''],
+        ['Message personnalisé', userData.customMessage || '']
+      ];
+      
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      XLSX.utils.book_append_sheet(workbook, worksheet, userName);
+    });
+
+    // Créer une feuille de statistiques
+    const statsData = [['Question', 'Option', 'Nombre de réponses']];
+    questions.forEach(question => {
+      const allOptions = getAllOptionsForQuestion(question.stepName);
+      allOptions.forEach(option => {
+        const count = Object.values(allData).filter((userData: any) => {
+          const userAnswers = userData[question.stepName];
+          if (Array.isArray(userAnswers)) {
+            return userAnswers.includes(option.id);
+          }
+          return userAnswers === option.id;
+        }).length;
+        
+        if (count > 0) {
+          statsData.push([question.title, option.label, count.toString()]);
+        }
+      });
+    });
+    
+    const statsWorksheet = XLSX.utils.aoa_to_sheet(statsData);
+    XLSX.utils.book_append_sheet(workbook, statsWorksheet, 'Statistiques');
+
+    XLSX.writeFile(workbook, `voyage_corse_donnees_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  const handleResetUser = () => {
+    if (selectedUser) {
+      resetUserPreferences(selectedUser);
+      setSelectedUser('');
+      loadData();
+    }
+  };
+
+  const moveQuestion = (questionIndex: number, direction: 'up' | 'down') => {
+    const newQuestions = [...questions];
+    const targetIndex = direction === 'up' ? questionIndex - 1 : questionIndex + 1;
+    
+    if (targetIndex >= 0 && targetIndex < newQuestions.length) {
+      [newQuestions[questionIndex], newQuestions[targetIndex]] = 
+      [newQuestions[targetIndex], newQuestions[questionIndex]];
+      
+      // Mettre à jour les ordres
+      newQuestions.forEach((q, index) => {
+        q.order = index;
+      });
+      
+      setQuestions(newQuestions);
+    }
+  };
+
+  const addNewQuestion = () => {
+    if (!newQuestionTitle) {
+      toast({
+        title: "❌ Erreur",
+        description: "Veuillez saisir un titre pour la nouvelle question.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    const newQuestion: QuestionConfig = {
+      stepName: `custom-${Date.now()}` as StepName,
+      title: newQuestionTitle,
+      emoji: '❓',
+      allowMultiple: true,
+      allowCustom: true,
+      order: questions.length,
+      options: []
+    };
+    
+    const updatedQuestions = [...questions, newQuestion];
+    setQuestions(updatedQuestions);
+    setNewQuestionTitle('');
+    console.log('Nouvelle question ajoutée:', newQuestion);
+  };
+
+  const deleteQuestion = (stepName: StepName) => {
+    const updatedQuestions = questions.filter(q => q.stepName !== stepName);
+    updatedQuestions.forEach((q, index) => {
+      q.order = index;
+    });
+    setQuestions(updatedQuestions);
+    console.log('Question supprimée:', stepName);
+  };
+
+  const getUserCompletionStatus = (userName: string) => {
+    const userData = allData[userName];
+    if (!userData) return 'Non commencé';
+    
+    const hasBasicData = userData.meals || userData.drinks || userData.activities || userData.budget;
+    if (!hasBasicData) return 'Non commencé';
+    
+    const requiredFields = ['meals', 'drinks', 'activities', 'budget'];
+    const completedFields = requiredFields.filter(field => 
+      userData[field] && (Array.isArray(userData[field]) ? userData[field].length > 0 : userData[field])
+    );
+    
+    if (completedFields.length === requiredFields.length && userData.customMessage) {
+      return 'Terminé';
+    } else {
+      return `En cours (${completedFields.length}/${requiredFields.length})`;
+    }
+  };
+
+  const getTotalResponses = () => {
+    return Object.keys(allData).length;
+  };
+
+  const getCompletedResponses = () => {
+    return Object.keys(allData).filter(userName => 
+      getUserCompletionStatus(userName) === 'Terminé'
+    ).length;
+  };
 };
 
 export default AdminManagement;
