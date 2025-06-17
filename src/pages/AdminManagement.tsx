@@ -224,9 +224,9 @@ const AdminManagement = () => {
         ['Question', 'Réponse'],
         ['Plats préférés', userData.meals?.map((id: string) => getOptionLabel('meals', id)).join(', ') || ''],
         ['Allergies', userData.allergies?.map((id: string) => getOptionLabel('allergies', id)).join(', ') || ''],
-        ['Petit-déjeuner', userData.breakfast?.map((id: string) => getOptionLabel('breakfast', breakfastId)).join(', ') || ''],
-        ['Boissons', userData.drinks?.map((id: string) => getOptionLabel('drinks', drinkId)).join(', ') || ''],
-        ['Activités', userData.activities?.map((id: string) => getOptionLabel('activities', activityId)).join(', ') || ''],
+        ['Petit-déjeuner', userData.breakfast?.map((id: string) => getOptionLabel('breakfast', id)).join(', ') || ''],
+        ['Boissons', userData.drinks?.map((id: string) => getOptionLabel('drinks', id)).join(', ') || ''],
+        ['Activités', userData.activities?.map((id: string) => getOptionLabel('activities', id)).join(', ') || ''],
         ['Budget', userData.budget ? getOptionLabel('budget', userData.budget) : ''],
         ['Objets à prévoir', userData.items?.map((id: string) => getOptionLabel('items', id)).join(', ') || ''],
         ['Message personnalisé', userData.customMessage || '']
@@ -480,36 +480,36 @@ const AdminManagement = () => {
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div>
-                      <strong>Plats:</strong> {userData.meals?.map((mealId: string) => 
-                        getOptionLabel('meals', mealId)
+                      <strong>Plats:</strong> {userData.meals?.map((id: string) => 
+                        getOptionLabel('meals', id)
                       ).join(', ') || 'Aucun'}
                     </div>
                     <div>
-                      <strong>Allergies:</strong> {userData.allergies?.map((allergyId: string) => 
-                        getOptionLabel('allergies', allergyId)
+                      <strong>Allergies:</strong> {userData.allergies?.map((id: string) => 
+                        getOptionLabel('allergies', id)
                       ).join(', ') || 'Aucune'}
                     </div>
                     <div>
-                      <strong>Petit-déjeuner:</strong> {userData.breakfast?.map((breakfastId: string) => 
-                        getOptionLabel('breakfast', breakfastId)
+                      <strong>Petit-déjeuner:</strong> {userData.breakfast?.map((id: string) => 
+                        getOptionLabel('breakfast', id)
                       ).join(', ') || 'Aucun'}
                     </div>
                     <div>
-                      <strong>Boissons:</strong> {userData.drinks?.map((drinkId: string) => 
-                        getOptionLabel('drinks', drinkId)
+                      <strong>Boissons:</strong> {userData.drinks?.map((id: string) => 
+                        getOptionLabel('drinks', id)
                       ).join(', ') || 'Aucune'}
                     </div>
                     <div>
-                      <strong>Activités:</strong> {userData.activities?.map((activityId: string) => 
-                        getOptionLabel('activities', activityId)
+                      <strong>Activités:</strong> {userData.activities?.map((id: string) => 
+                        getOptionLabel('activities', id)
                       ).join(', ') || 'Aucune'}
                     </div>
                     <div>
                       <strong>Budget:</strong> {userData.budget ? getOptionLabel('budget', userData.budget) : 'Non défini'}
                     </div>
                     <div>
-                      <strong>Objets:</strong> {userData.items?.map((itemId: string) => 
-                        getOptionLabel('items', itemId)
+                      <strong>Objets:</strong> {userData.items?.map((id: string) => 
+                        getOptionLabel('items', id)
                       ).join(', ') || 'Aucun'}
                     </div>
                     <div>
