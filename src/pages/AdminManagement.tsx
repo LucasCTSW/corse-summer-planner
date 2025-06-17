@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -225,9 +224,9 @@ const AdminManagement = () => {
         ['Question', 'Réponse'],
         ['Plats préférés', userData.meals?.map((id: string) => getOptionLabel('meals', id)).join(', ') || ''],
         ['Allergies', userData.allergies?.map((id: string) => getOptionLabel('allergies', id)).join(', ') || ''],
-        ['Petit-déjeuner', userData.breakfast?.map((id: string) => getOptionLabel('breakfast', id)).join(', ') || ''],
-        ['Boissons', userData.drinks?.map((id: string) => getOptionLabel('drinks', id)).join(', ') || ''],
-        ['Activités', userData.activities?.map((id: string) => getOptionLabel('activities', id)).join(', ') || ''],
+        ['Petit-déjeuner', userData.breakfast?.map((id: string) => getOptionLabel('breakfast', breakfastId)).join(', ') || ''],
+        ['Boissons', userData.drinks?.map((id: string) => getOptionLabel('drinks', drinkId)).join(', ') || ''],
+        ['Activités', userData.activities?.map((id: string) => getOptionLabel('activities', activityId)).join(', ') || ''],
         ['Budget', userData.budget ? getOptionLabel('budget', userData.budget) : ''],
         ['Objets à prévoir', userData.items?.map((id: string) => getOptionLabel('items', id)).join(', ') || ''],
         ['Message personnalisé', userData.customMessage || '']
@@ -339,11 +338,15 @@ const AdminManagement = () => {
       q.order = index;
     });
     setQuestions(updatedQuestions);
+    
+    // Sauvegarder immédiatement la configuration modifiée
+    saveQuestionConfiguration(updatedQuestions);
+    
     console.log('Question supprimée:', stepName);
     
     toast({
       title: "✅ Question supprimée",
-      description: `La question "${questionToDelete?.title}" a été supprimée.`,
+      description: `La question "${questionToDelete?.title}" a été supprimée définitivement.`,
       duration: 3000,
     });
   };
@@ -631,15 +634,14 @@ const AdminManagement = () => {
                         />
                       </div>
                       <Badge variant="secondary">{getAllOptionsForStep(question.stepName).length} options</Badge>
-                      {!['meals', 'allergies', 'breakfast', 'drinks', 'activities', 'budget', 'items'].includes(question.stepName) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteQuestion(question.stepName)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteQuestion(question.stepName)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
 
                     <div className="space-y-2">
@@ -720,4 +722,3 @@ const AdminManagement = () => {
 };
 
 export default AdminManagement;
-
