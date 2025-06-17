@@ -1,4 +1,56 @@
+
 import { UserPreferences, FormOption, StepName } from "./types";
+
+// Options par défaut pour chaque question
+const defaultOptions: { [key: string]: FormOption[] } = {
+  meals: [
+    { id: 'pizza', label: 'Pizza', emoji: '🍕' },
+    { id: 'pasta', label: 'Pâtes', emoji: '🍝' },
+    { id: 'bbq', label: 'Barbecue', emoji: '🔥' },
+    { id: 'seafood', label: 'Fruits de mer', emoji: '🦐' },
+    { id: 'salad', label: 'Salade', emoji: '🥗' },
+    { id: 'raclette', label: 'Raclette', emoji: '🧀' }
+  ],
+  allergies: [
+    { id: 'none', label: 'Aucune', emoji: '✅' },
+    { id: 'nuts', label: 'Fruits à coque', emoji: '🥜' },
+    { id: 'shellfish', label: 'Fruits de mer', emoji: '🦐' },
+    { id: 'dairy', label: 'Produits laitiers', emoji: '🥛' },
+    { id: 'gluten', label: 'Gluten', emoji: '🌾' }
+  ],
+  breakfast: [
+    { id: 'coffee', label: 'Café', emoji: '☕' },
+    { id: 'tea', label: 'Thé', emoji: '🍵' },
+    { id: 'croissant', label: 'Viennoiseries', emoji: '🥐' },
+    { id: 'juice', label: 'Jus de fruits', emoji: '🧃' }
+  ],
+  drinks: [
+    { id: 'water', label: 'Eau', emoji: '💧' },
+    { id: 'beer', label: 'Bière', emoji: '🍺' },
+    { id: 'wine', label: 'Vin', emoji: '🍷' },
+    { id: 'cocktail', label: 'Cocktails', emoji: '🍹' },
+    { id: 'soda', label: 'Sodas', emoji: '🥤' }
+  ],
+  activities: [
+    { id: 'beach', label: 'Plage', emoji: '🏖️' },
+    { id: 'boat', label: 'Bateau', emoji: '⛵' },
+    { id: 'hiking', label: 'Randonnée', emoji: '🥾' },
+    { id: 'chill', label: 'Détente', emoji: '😎' },
+    { id: 'snorkeling', label: 'Snorkeling', emoji: '🤿' },
+    { id: 'sightseeing', label: 'Visites', emoji: '📸' }
+  ],
+  budget: [
+    { id: 'tight', label: 'Serré (50-100€)', emoji: '💸' },
+    { id: 'moderate', label: 'Modéré (100-200€)', emoji: '💰' },
+    { id: 'splurge', label: 'Large (200€+)', emoji: '🤑' }
+  ],
+  items: [
+    { id: 'sunscreen', label: 'Crème solaire', emoji: '🧴' },
+    { id: 'camera', label: 'Appareil photo', emoji: '📷' },
+    { id: 'snorkel', label: 'Masque et tuba', emoji: '🤿' },
+    { id: 'towel', label: 'Serviette', emoji: '🏖️' }
+  ]
+};
 
 // Phrases génériques
 const genericMessages = [
@@ -62,20 +114,6 @@ export function generatePersonalizedMessage(preferences: UserPreferences): strin
     return "On va pagayer ou c'est pédalo collectif ? 🛶";
   }
   
-  // Phrases génériques
-  const genericMessages = [
-    "Merci pour tes réponses, camarade de fun ! On se retrouve sur la plage 🌴😎",
-    "Au top, t'es prêt pour les vacances loulou ! 🏖️🤟",
-    "Ok pelo, rendez-vous dans quelques jours pour le décollage 🚀",
-    "C'est validé ! Prépare la crème solaire et la playlist, ça va envoyer 🔥",
-    "Merci chef, y'a plus qu'à tout réserver. On compte sur toi pour l'ambiance ! 🍹",
-    "Bravo, tu viens d'obtenir le badge \"vacancier officiel\" 🥇😜",
-    "Let's go ! Avec toi dans l'équipe, c'est sûr qu'on va pas s'ennuyer 😏",
-    "Trop bien, les vacances approchent, plus qu'à attendre le top départ ! ⏰🌅",
-    "Good job, maintenant on laisse le destin (et le groupe WhatsApp) faire le reste 📲😅",
-    "Formulaire plié, t'as géré comme un chef. La suite au prochain épisode ! 🍿"
-  ];
-  
   // Si aucune condition spéciale n'est remplie, retourner un message générique aléatoire
   const randomIndex = Math.floor(Math.random() * genericMessages.length);
   return genericMessages[randomIndex];
@@ -110,6 +148,53 @@ export function getUserPreferences(userName: string): UserPreferences | null {
     console.error('Error retrieving user preferences:', error);
     return null;
   }
+}
+
+// Fonction pour récupérer le libellé d'une option
+export function getOptionLabel(stepName: StepName, optionId: string): string {
+  console.log('Getting option label for:', { stepName, optionId });
+  
+  // 1. Chercher dans les options par défaut
+  const defaultStepOptions = defaultOptions[stepName] || [];
+  const defaultOption = defaultStepOptions.find(opt => opt.id === optionId);
+  if (defaultOption) {
+    console.log('Found in default options:', defaultOption.label);
+    return defaultOption.label;
+  }
+  
+  // 2. Chercher dans les options admin
+  const questions = getQuestionConfiguration();
+  const question = questions.find(q => q.stepName === stepName);
+  if (question && question.options) {
+    const adminOption = question.options.find((opt: FormOption) => opt.id === optionId);
+    if (adminOption) {
+      console.log('Found in admin options:', adminOption.label);
+      return adminOption.label;
+    }
+  }
+  
+  // 3. Chercher dans toutes les options personnalisées des utilisateurs
+  const existingData = localStorage.getItem('corsicaTripUsers');
+  if (existingData) {
+    const usersData = JSON.parse(existingData);
+    
+    for (const [userName, userData] of Object.entries(usersData)) {
+      const userDataTyped = userData as any;
+      if (userDataTyped.customOptions && userDataTyped.customOptions[stepName]) {
+        const customOption = userDataTyped.customOptions[stepName].find(
+          (opt: FormOption) => opt.id === optionId
+        );
+        if (customOption) {
+          console.log('Found in user custom options:', customOption.label, 'by', userName);
+          return customOption.label;
+        }
+      }
+    }
+  }
+  
+  // Fallback: retourner l'ID si rien n'est trouvé
+  console.log('Option not found, returning ID:', optionId);
+  return optionId;
 }
 
 export function getGlobalCustomOptions(stepName: string): FormOption[] {
@@ -181,11 +266,11 @@ export function deleteOptionFromQuestion(questionStepName: string, optionId: str
   try {
     console.log('Deleting option:', { questionStepName, optionId });
     
-    // Remove from question configuration (admin-added options)
+    // Supprimer des options admin
     const questions = getQuestionConfiguration();
     const updatedQuestions = questions.map(q => {
       if (q.stepName === questionStepName) {
-        const filteredOptions = q.options.filter(opt => opt.id !== optionId);
+        const filteredOptions = (q.options || []).filter((opt: FormOption) => opt.id !== optionId);
         console.log('Filtered admin options:', filteredOptions);
         return {
           ...q,
@@ -196,7 +281,7 @@ export function deleteOptionFromQuestion(questionStepName: string, optionId: str
     });
     saveQuestionConfiguration(updatedQuestions);
 
-    // Remove from all user preferences and custom options
+    // Supprimer des préférences utilisateurs et options personnalisées
     const existingData = localStorage.getItem('corsicaTripUsers');
     if (existingData) {
       const usersData = JSON.parse(existingData);
@@ -204,12 +289,16 @@ export function deleteOptionFromQuestion(questionStepName: string, optionId: str
       Object.keys(usersData).forEach(userName => {
         const userData = usersData[userName];
         
-        // Remove from user's selections
-        if (userData[questionStepName] && Array.isArray(userData[questionStepName])) {
-          userData[questionStepName] = userData[questionStepName].filter((id: string) => id !== optionId);
+        // Supprimer des sélections utilisateur
+        if (userData[questionStepName]) {
+          if (Array.isArray(userData[questionStepName])) {
+            userData[questionStepName] = userData[questionStepName].filter((id: string) => id !== optionId);
+          } else if (userData[questionStepName] === optionId) {
+            userData[questionStepName] = '';
+          }
         }
         
-        // Remove from user's custom options
+        // Supprimer des options personnalisées
         if (userData.customOptions && userData.customOptions[questionStepName]) {
           userData.customOptions[questionStepName] = userData.customOptions[questionStepName].filter(
             (opt: FormOption) => opt.id !== optionId
@@ -233,7 +322,7 @@ export function addOptionToQuestion(questionStepName: string, option: FormOption
       if (q.stepName === questionStepName) {
         return {
           ...q,
-          options: [...q.options, option]
+          options: [...(q.options || []), option]
         };
       }
       return q;
@@ -323,3 +412,32 @@ export function getQuestionConfiguration(): any[] {
     return [];
   }
 }
+
+// Fonction pour récupérer toutes les options disponibles pour une question (par défaut + admin + utilisateurs)
+export function getAllOptionsForStep(stepName: StepName): FormOption[] {
+  console.log('Getting all options for step:', stepName);
+  
+  // Options par défaut
+  const defaultStepOptions = defaultOptions[stepName] || [];
+  console.log('Default options:', defaultStepOptions);
+  
+  // Options admin
+  const questions = getQuestionConfiguration();
+  const question = questions.find(q => q.stepName === stepName);
+  const adminOptions = question?.options || [];
+  console.log('Admin options:', adminOptions);
+  
+  // Options personnalisées des utilisateurs
+  const userCustomOptions = getGlobalCustomOptions(stepName);
+  console.log('User custom options:', userCustomOptions);
+  
+  // Combiner et dédupliquer
+  const combined = [...defaultStepOptions, ...adminOptions, ...userCustomOptions];
+  const unique = combined.filter((option, index, self) => 
+    index === self.findIndex(o => o.id === option.id)
+  );
+  
+  console.log('All unique options for', stepName, ':', unique);
+  return unique;
+}
+

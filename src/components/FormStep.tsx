@@ -5,7 +5,7 @@ import { FormOption, StepName } from '@/lib/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { getGlobalCustomOptions, saveCustomOption, getQuestionConfiguration } from '@/lib/logic';
+import { getGlobalCustomOptions, saveCustomOption, getQuestionConfiguration, getAllOptionsForStep } from '@/lib/logic';
 
 interface FormStepProps {
   title: string;
@@ -45,32 +45,16 @@ const FormStep = ({
     const loadAllOptions = () => {
       console.log('Loading options for step:', stepName);
       
-      // Get admin-configured options
-      const questions = getQuestionConfiguration();
-      const currentQuestion = questions.find(q => q.stepName === stepName);
-      const adminOptions = currentQuestion?.options || [];
-      console.log('Admin options:', adminOptions);
+      // Utiliser la nouvelle fonction pour récupérer toutes les options
+      const allOptions = getAllOptionsForStep(stepName);
+      console.log('All options loaded:', allOptions);
       
-      // Get user-added custom options
-      const userCustomOptions = getGlobalCustomOptions(stepName);
-      console.log('User custom options:', userCustomOptions);
-      
-      // Combine default options + admin options + user custom options
-      const combined = [...options, ...adminOptions, ...userCustomOptions];
-      console.log('Combined options before dedup:', combined);
-      
-      // Remove duplicates based on ID
-      const unique = combined.filter((option, index, self) => 
-        index === self.findIndex(o => o.id === option.id)
-      );
-      console.log('Final unique options:', unique);
-      
-      setAllAvailableOptions(unique);
+      setAllAvailableOptions(allOptions);
     };
 
     loadAllOptions();
     
-    // Refresh options every 3 seconds to catch admin changes
+    // Refresh options every 3 seconds to catch admin changes and new user options
     const interval = setInterval(loadAllOptions, 3000);
     
     return () => clearInterval(interval);
@@ -192,3 +176,4 @@ const FormStep = ({
 };
 
 export default FormStep;
+

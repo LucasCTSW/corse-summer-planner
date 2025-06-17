@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,17 @@ import { Toaster } from '@/components/ui/toaster';
 import { useToast } from "@/hooks/use-toast";
 import AdminSaveButton from '@/components/AdminSaveButton';
 import * as XLSX from 'xlsx';
-import { exportAllData, resetUserPreferences, saveQuestionConfiguration, getQuestionConfiguration, deleteOptionFromQuestion, addOptionToQuestion, getGlobalCustomOptions } from '@/lib/logic';
+import { 
+  exportAllData, 
+  resetUserPreferences, 
+  saveQuestionConfiguration, 
+  getQuestionConfiguration, 
+  deleteOptionFromQuestion, 
+  addOptionToQuestion, 
+  getGlobalCustomOptions,
+  getOptionLabel,
+  getAllOptionsForStep
+} from '@/lib/logic';
 import { FormOption, StepName } from '@/lib/types';
 import { userNames } from '@/lib/data';
 
@@ -25,57 +36,6 @@ interface QuestionConfig {
   options: FormOption[];
 }
 
-// Options pré-enregistrées par défaut
-const defaultOptions: { [key: string]: FormOption[] } = {
-  meals: [
-    { id: 'pizza', label: 'Pizza', emoji: '🍕' },
-    { id: 'pasta', label: 'Pâtes', emoji: '🍝' },
-    { id: 'bbq', label: 'Barbecue', emoji: '🔥' },
-    { id: 'seafood', label: 'Fruits de mer', emoji: '🦐' },
-    { id: 'salad', label: 'Salade', emoji: '🥗' },
-    { id: 'raclette', label: 'Raclette', emoji: '🧀' }
-  ],
-  allergies: [
-    { id: 'none', label: 'Aucune', emoji: '✅' },
-    { id: 'nuts', label: 'Fruits à coque', emoji: '🥜' },
-    { id: 'shellfish', label: 'Fruits de mer', emoji: '🦐' },
-    { id: 'dairy', label: 'Produits laitiers', emoji: '🥛' },
-    { id: 'gluten', label: 'Gluten', emoji: '🌾' }
-  ],
-  breakfast: [
-    { id: 'coffee', label: 'Café', emoji: '☕' },
-    { id: 'tea', label: 'Thé', emoji: '🍵' },
-    { id: 'croissant', label: 'Viennoiseries', emoji: '🥐' },
-    { id: 'juice', label: 'Jus de fruits', emoji: '🧃' }
-  ],
-  drinks: [
-    { id: 'water', label: 'Eau', emoji: '💧' },
-    { id: 'beer', label: 'Bière', emoji: '🍺' },
-    { id: 'wine', label: 'Vin', emoji: '🍷' },
-    { id: 'cocktail', label: 'Cocktails', emoji: '🍹' },
-    { id: 'soda', label: 'Sodas', emoji: '🥤' }
-  ],
-  activities: [
-    { id: 'beach', label: 'Plage', emoji: '🏖️' },
-    { id: 'boat', label: 'Bateau', emoji: '⛵' },
-    { id: 'hiking', label: 'Randonnée', emoji: '🥾' },
-    { id: 'chill', label: 'Détente', emoji: '😎' },
-    { id: 'snorkeling', label: 'Snorkeling', emoji: '🤿' },
-    { id: 'sightseeing', label: 'Visites', emoji: '📸' }
-  ],
-  budget: [
-    { id: 'tight', label: 'Serré (50-100€)', emoji: '💸' },
-    { id: 'moderate', label: 'Modéré (100-200€)', emoji: '💰' },
-    { id: 'splurge', label: 'Large (200€+)', emoji: '🤑' }
-  ],
-  items: [
-    { id: 'sunscreen', label: 'Crème solaire', emoji: '🧴' },
-    { id: 'camera', label: 'Appareil photo', emoji: '📷' },
-    { id: 'snorkel', label: 'Masque et tuba', emoji: '🤿' },
-    { id: 'towel', label: 'Serviette', emoji: '🏖️' }
-  ]
-};
-
 const AdminManagement = () => {
   const [allData, setAllData] = useState<any>({});
   const [questions, setQuestions] = useState<QuestionConfig[]>([]);
@@ -83,73 +43,6 @@ const AdminManagement = () => {
   const [editingQuestion, setEditingQuestion] = useState<QuestionConfig | null>(null);
   const [newQuestionTitle, setNewQuestionTitle] = useState('');
   const { toast } = useToast();
-
-  // Fonctions utilitaires déplacées en haut
-  const getOptionLabel = (questionStepName: StepName, optionId: string): string => {
-    console.log('Getting option label for:', { questionStepName, optionId });
-    
-    // D'abord, chercher dans les options par défaut
-    const defaultOptionsForStep = defaultOptions[questionStepName] || [];
-    const defaultOption = defaultOptionsForStep.find(opt => opt.id === optionId);
-    if (defaultOption) {
-      console.log('Found in default options:', defaultOption.label);
-      return defaultOption.label;
-    }
-    
-    // Ensuite, chercher dans les options admin
-    const question = questions.find(q => q.stepName === questionStepName);
-    const adminOptions = question?.options || [];
-    const adminOption = adminOptions.find(opt => opt.id === optionId);
-    if (adminOption) {
-      console.log('Found in admin options:', adminOption.label);
-      return adminOption.label;
-    }
-    
-    // Puis chercher dans les options personnalisées globales
-    const userCustomOptions = getGlobalCustomOptions(questionStepName);
-    const customOption = userCustomOptions.find(opt => opt.id === optionId);
-    if (customOption) {
-      console.log('Found in global custom options:', customOption.label);
-      return customOption.label;
-    }
-    
-    // Si pas trouvé, chercher dans les données brutes des utilisateurs
-    const existingData = localStorage.getItem('corsicaTripUsers');
-    if (existingData) {
-      const usersData = JSON.parse(existingData);
-      
-      for (const [userName, userData] of Object.entries(usersData)) {
-        const userDataTyped = userData as any;
-        if (userDataTyped.customOptions && userDataTyped.customOptions[questionStepName]) {
-          const userCustomOption = userDataTyped.customOptions[questionStepName].find(
-            (opt: FormOption) => opt.id === optionId
-          );
-          if (userCustomOption) {
-            console.log('Found in user custom options:', userCustomOption.label, 'by', userName);
-            return userCustomOption.label;
-          }
-        }
-      }
-    }
-    
-    // Fallback: afficher l'ID si rien n'est trouvé
-    console.log('Option not found, returning ID:', optionId);
-    return optionId;
-  };
-
-  const getAllOptionsForQuestion = (questionStepName: StepName): FormOption[] => {
-    // Combiner les options par défaut, admin et utilisateurs
-    const defaultOptionsForStep = defaultOptions[questionStepName] || [];
-    const question = questions.find(q => q.stepName === questionStepName);
-    const adminOptions = question?.options || [];
-    const userCustomOptions = getGlobalCustomOptions(questionStepName);
-    
-    // Combiner et dédupliquer
-    const combined = [...defaultOptionsForStep, ...adminOptions, ...userCustomOptions];
-    return combined.filter((option, index, self) => 
-      index === self.findIndex(o => o.id === option.id)
-    );
-  };
 
   const getOptionStats = (questionStepName: StepName, optionId: string): number => {
     return Object.values(allData).filter((userData: any) => {
@@ -238,8 +131,19 @@ const AdminManagement = () => {
     try {
       saveQuestionConfiguration(questions);
       console.log('Configuration sauvegardée:', questions);
+      toast({
+        title: "✅ Sauvegardé",
+        description: "La configuration des questions a été sauvegardée.",
+        duration: 3000,
+      });
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
+      toast({
+        title: "❌ Erreur",
+        description: "Erreur lors de la sauvegarde.",
+        variant: "destructive",
+        duration: 3000,
+      });
       throw error;
     }
   };
@@ -266,13 +170,27 @@ const AdminManagement = () => {
     addOptionToQuestion(questionStepName, newOption);
     loadQuestions();
     loadData();
+    
+    toast({
+      title: "✅ Option ajoutée",
+      description: `L'option "${optionLabel.trim()}" a été ajoutée.`,
+      duration: 3000,
+    });
   };
 
   const deleteOptionFromQuestionHandler = (questionStepName: StepName, optionId: string) => {
     console.log('Suppression d\'option:', { questionStepName, optionId });
+    const optionLabel = getOptionLabel(questionStepName, optionId);
+    
     deleteOptionFromQuestion(questionStepName, optionId);
     loadQuestions();
     loadData();
+    
+    toast({
+      title: "✅ Option supprimée",
+      description: `L'option "${optionLabel}" a été supprimée.`,
+      duration: 3000,
+    });
   };
 
   const exportToExcel = () => {
@@ -322,7 +240,7 @@ const AdminManagement = () => {
     // Créer une feuille de statistiques
     const statsData = [['Question', 'Option', 'Nombre de réponses']];
     questions.forEach(question => {
-      const allOptions = getAllOptionsForQuestion(question.stepName);
+      const allOptions = getAllOptionsForStep(question.stepName);
       allOptions.forEach(option => {
         const count = Object.values(allData).filter((userData: any) => {
           const userAnswers = userData[question.stepName];
@@ -342,6 +260,12 @@ const AdminManagement = () => {
     XLSX.utils.book_append_sheet(workbook, statsWorksheet, 'Statistiques');
 
     XLSX.writeFile(workbook, `voyage_corse_donnees_${new Date().toISOString().split('T')[0]}.xlsx`);
+    
+    toast({
+      title: "✅ Export terminé",
+      description: "Le fichier Excel a été téléchargé.",
+      duration: 3000,
+    });
   };
 
   const handleResetUser = () => {
@@ -349,6 +273,12 @@ const AdminManagement = () => {
       resetUserPreferences(selectedUser);
       setSelectedUser('');
       loadData();
+      
+      toast({
+        title: "✅ Utilisateur réinitialisé",
+        description: `Les données de ${selectedUser} ont été supprimées.`,
+        duration: 3000,
+      });
     }
   };
 
@@ -394,15 +324,28 @@ const AdminManagement = () => {
     setQuestions(updatedQuestions);
     setNewQuestionTitle('');
     console.log('Nouvelle question ajoutée:', newQuestion);
+    
+    toast({
+      title: "✅ Question ajoutée",
+      description: `La question "${newQuestionTitle}" a été ajoutée.`,
+      duration: 3000,
+    });
   };
 
   const deleteQuestion = (stepName: StepName) => {
+    const questionToDelete = questions.find(q => q.stepName === stepName);
     const updatedQuestions = questions.filter(q => q.stepName !== stepName);
     updatedQuestions.forEach((q, index) => {
       q.order = index;
     });
     setQuestions(updatedQuestions);
     console.log('Question supprimée:', stepName);
+    
+    toast({
+      title: "✅ Question supprimée",
+      description: `La question "${questionToDelete?.title}" a été supprimée.`,
+      duration: 3000,
+    });
   };
 
   return (
@@ -588,7 +531,7 @@ const AdminManagement = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {getAllOptionsForQuestion(question.stepName).map(option => {
+                    {getAllOptionsForStep(question.stepName).map(option => {
                       const count = getOptionStats(question.stepName, option.id);
                       const percentage = getTotalResponses() > 0 ? Math.round((count / getTotalResponses()) * 100) : 0;
                       const creator = getOptionCreator(question.stepName, option.id);
@@ -687,7 +630,7 @@ const AdminManagement = () => {
                           }}
                         />
                       </div>
-                      <Badge variant="secondary">{getAllOptionsForQuestion(question.stepName).length} options</Badge>
+                      <Badge variant="secondary">{getAllOptionsForStep(question.stepName).length} options</Badge>
                       {!['meals', 'allergies', 'breakfast', 'drinks', 'activities', 'budget', 'items'].includes(question.stepName) && (
                         <Button
                           variant="outline"
@@ -701,7 +644,7 @@ const AdminManagement = () => {
 
                     <div className="space-y-2">
                       <div className="flex flex-wrap gap-2">
-                        {getAllOptionsForQuestion(question.stepName).map(option => {
+                        {getAllOptionsForStep(question.stepName).map(option => {
                           const creator = getOptionCreator(question.stepName, option.id);
                           return (
                             <div key={option.id} className="flex items-center gap-2 bg-muted p-2 rounded">
@@ -777,3 +720,4 @@ const AdminManagement = () => {
 };
 
 export default AdminManagement;
+
