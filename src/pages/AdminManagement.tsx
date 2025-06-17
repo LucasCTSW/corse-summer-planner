@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +25,57 @@ interface QuestionConfig {
   options: FormOption[];
 }
 
+// Options pré-enregistrées par défaut
+const defaultOptions: { [key: string]: FormOption[] } = {
+  meals: [
+    { id: 'pizza', label: 'Pizza', emoji: '🍕' },
+    { id: 'pasta', label: 'Pâtes', emoji: '🍝' },
+    { id: 'bbq', label: 'Barbecue', emoji: '🔥' },
+    { id: 'seafood', label: 'Fruits de mer', emoji: '🦐' },
+    { id: 'salad', label: 'Salade', emoji: '🥗' },
+    { id: 'raclette', label: 'Raclette', emoji: '🧀' }
+  ],
+  allergies: [
+    { id: 'none', label: 'Aucune', emoji: '✅' },
+    { id: 'nuts', label: 'Fruits à coque', emoji: '🥜' },
+    { id: 'shellfish', label: 'Fruits de mer', emoji: '🦐' },
+    { id: 'dairy', label: 'Produits laitiers', emoji: '🥛' },
+    { id: 'gluten', label: 'Gluten', emoji: '🌾' }
+  ],
+  breakfast: [
+    { id: 'coffee', label: 'Café', emoji: '☕' },
+    { id: 'tea', label: 'Thé', emoji: '🍵' },
+    { id: 'croissant', label: 'Viennoiseries', emoji: '🥐' },
+    { id: 'juice', label: 'Jus de fruits', emoji: '🧃' }
+  ],
+  drinks: [
+    { id: 'water', label: 'Eau', emoji: '💧' },
+    { id: 'beer', label: 'Bière', emoji: '🍺' },
+    { id: 'wine', label: 'Vin', emoji: '🍷' },
+    { id: 'cocktail', label: 'Cocktails', emoji: '🍹' },
+    { id: 'soda', label: 'Sodas', emoji: '🥤' }
+  ],
+  activities: [
+    { id: 'beach', label: 'Plage', emoji: '🏖️' },
+    { id: 'boat', label: 'Bateau', emoji: '⛵' },
+    { id: 'hiking', label: 'Randonnée', emoji: '🥾' },
+    { id: 'chill', label: 'Détente', emoji: '😎' },
+    { id: 'snorkeling', label: 'Snorkeling', emoji: '🤿' },
+    { id: 'sightseeing', label: 'Visites', emoji: '📸' }
+  ],
+  budget: [
+    { id: 'tight', label: 'Serré (50-100€)', emoji: '💸' },
+    { id: 'moderate', label: 'Modéré (100-200€)', emoji: '💰' },
+    { id: 'splurge', label: 'Large (200€+)', emoji: '🤑' }
+  ],
+  items: [
+    { id: 'sunscreen', label: 'Crème solaire', emoji: '🧴' },
+    { id: 'camera', label: 'Appareil photo', emoji: '📷' },
+    { id: 'snorkel', label: 'Masque et tuba', emoji: '🤿' },
+    { id: 'towel', label: 'Serviette', emoji: '🏖️' }
+  ]
+};
+
 const AdminManagement = () => {
   const [allData, setAllData] = useState<any>({});
   const [questions, setQuestions] = useState<QuestionConfig[]>([]);
@@ -33,6 +83,134 @@ const AdminManagement = () => {
   const [editingQuestion, setEditingQuestion] = useState<QuestionConfig | null>(null);
   const [newQuestionTitle, setNewQuestionTitle] = useState('');
   const { toast } = useToast();
+
+  // Fonctions utilitaires déplacées en haut
+  const getOptionLabel = (questionStepName: StepName, optionId: string): string => {
+    console.log('Getting option label for:', { questionStepName, optionId });
+    
+    // D'abord, chercher dans les options par défaut
+    const defaultOptionsForStep = defaultOptions[questionStepName] || [];
+    const defaultOption = defaultOptionsForStep.find(opt => opt.id === optionId);
+    if (defaultOption) {
+      console.log('Found in default options:', defaultOption.label);
+      return defaultOption.label;
+    }
+    
+    // Ensuite, chercher dans les options admin
+    const question = questions.find(q => q.stepName === questionStepName);
+    const adminOptions = question?.options || [];
+    const adminOption = adminOptions.find(opt => opt.id === optionId);
+    if (adminOption) {
+      console.log('Found in admin options:', adminOption.label);
+      return adminOption.label;
+    }
+    
+    // Puis chercher dans les options personnalisées globales
+    const userCustomOptions = getGlobalCustomOptions(questionStepName);
+    const customOption = userCustomOptions.find(opt => opt.id === optionId);
+    if (customOption) {
+      console.log('Found in global custom options:', customOption.label);
+      return customOption.label;
+    }
+    
+    // Si pas trouvé, chercher dans les données brutes des utilisateurs
+    const existingData = localStorage.getItem('corsicaTripUsers');
+    if (existingData) {
+      const usersData = JSON.parse(existingData);
+      
+      for (const [userName, userData] of Object.entries(usersData)) {
+        const userDataTyped = userData as any;
+        if (userDataTyped.customOptions && userDataTyped.customOptions[questionStepName]) {
+          const userCustomOption = userDataTyped.customOptions[questionStepName].find(
+            (opt: FormOption) => opt.id === optionId
+          );
+          if (userCustomOption) {
+            console.log('Found in user custom options:', userCustomOption.label, 'by', userName);
+            return userCustomOption.label;
+          }
+        }
+      }
+    }
+    
+    // Fallback: afficher l'ID si rien n'est trouvé
+    console.log('Option not found, returning ID:', optionId);
+    return optionId;
+  };
+
+  const getAllOptionsForQuestion = (questionStepName: StepName): FormOption[] => {
+    // Combiner les options par défaut, admin et utilisateurs
+    const defaultOptionsForStep = defaultOptions[questionStepName] || [];
+    const question = questions.find(q => q.stepName === questionStepName);
+    const adminOptions = question?.options || [];
+    const userCustomOptions = getGlobalCustomOptions(questionStepName);
+    
+    // Combiner et dédupliquer
+    const combined = [...defaultOptionsForStep, ...adminOptions, ...userCustomOptions];
+    return combined.filter((option, index, self) => 
+      index === self.findIndex(o => o.id === option.id)
+    );
+  };
+
+  const getOptionStats = (questionStepName: StepName, optionId: string): number => {
+    return Object.values(allData).filter((userData: any) => {
+      const userAnswers = userData[questionStepName];
+      if (Array.isArray(userAnswers)) {
+        return userAnswers.includes(optionId);
+      }
+      return userAnswers === optionId;
+    }).length;
+  };
+
+  const getUserCompletionStatus = (userName: string) => {
+    const userData = allData[userName];
+    if (!userData) return 'Non commencé';
+    
+    const hasBasicData = userData.meals || userData.drinks || userData.activities || userData.budget;
+    if (!hasBasicData) return 'Non commencé';
+    
+    const requiredFields = ['meals', 'drinks', 'activities', 'budget'];
+    const completedFields = requiredFields.filter(field => 
+      userData[field] && (Array.isArray(userData[field]) ? userData[field].length > 0 : userData[field])
+    );
+    
+    if (completedFields.length === requiredFields.length && userData.customMessage) {
+      return 'Terminé';
+    } else {
+      return `En cours (${completedFields.length}/${requiredFields.length})`;
+    }
+  };
+
+  const getTotalResponses = () => {
+    return Object.keys(allData).length;
+  };
+
+  const getCompletedResponses = () => {
+    return Object.keys(allData).filter(userName => 
+      getUserCompletionStatus(userName) === 'Terminé'
+    ).length;
+  };
+
+  const getOptionCreator = (questionStepName: StepName, optionId: string): string | null => {
+    // Chercher qui a créé cette option personnalisée
+    const existingData = localStorage.getItem('corsicaTripUsers');
+    if (!existingData) return null;
+    
+    const usersData = JSON.parse(existingData);
+    
+    for (const [userName, userData] of Object.entries(usersData)) {
+      const userDataTyped = userData as any;
+      if (userDataTyped.customOptions && userDataTyped.customOptions[questionStepName]) {
+        const foundOption = userDataTyped.customOptions[questionStepName].find(
+          (opt: FormOption) => opt.id === optionId
+        );
+        if (foundOption) {
+          return userName;
+        }
+      }
+    }
+    
+    return null;
+  };
 
   useEffect(() => {
     loadData();
@@ -95,88 +273,6 @@ const AdminManagement = () => {
     deleteOptionFromQuestion(questionStepName, optionId);
     loadQuestions();
     loadData();
-  };
-
-  const getAllOptionsForQuestion = (questionStepName: StepName): FormOption[] => {
-    const question = questions.find(q => q.stepName === questionStepName);
-    const adminOptions = question?.options || [];
-    const userCustomOptions = getGlobalCustomOptions(questionStepName);
-    
-    // Combine and deduplicate
-    const combined = [...adminOptions, ...userCustomOptions];
-    return combined.filter((option, index, self) => 
-      index === self.findIndex(o => o.id === option.id)
-    );
-  };
-
-  const getOptionLabel = (questionStepName: StepName, optionId: string): string => {
-    // Chercher dans toutes les options (admin + utilisateurs)
-    const allOptions = getAllOptionsForQuestion(questionStepName);
-    const option = allOptions.find(opt => opt.id === optionId);
-    
-    if (option) {
-      return option.label;
-    }
-    
-    // Si pas trouvé, chercher dans les données brutes des utilisateurs
-    const existingData = localStorage.getItem('corsicaTripUsers');
-    if (existingData) {
-      const usersData = JSON.parse(existingData);
-      
-      for (const userData of Object.values(usersData)) {
-        const userDataTyped = userData as any;
-        if (userDataTyped.customOptions && userDataTyped.customOptions[questionStepName]) {
-          const customOption = userDataTyped.customOptions[questionStepName].find(
-            (opt: FormOption) => opt.id === optionId
-          );
-          if (customOption) {
-            return customOption.label;
-          }
-        }
-      }
-    }
-    
-    // Fallback: afficher l'ID si rien n'est trouvé
-    return optionId;
-  };
-
-  const getOptionStats = (questionStepName: StepName, optionId: string): number => {
-    return Object.values(allData).filter((userData: any) => {
-      const userAnswers = userData[questionStepName];
-      if (Array.isArray(userAnswers)) {
-        return userAnswers.includes(optionId);
-      }
-      return userAnswers === optionId;
-    }).length;
-  };
-
-  const getUserCompletionStatus = (userName: string) => {
-    const userData = allData[userName];
-    if (!userData) return 'Non commencé';
-    
-    const hasBasicData = userData.meals || userData.drinks || userData.activities || userData.budget;
-    if (!hasBasicData) return 'Non commencé';
-    
-    const requiredFields = ['meals', 'drinks', 'activities', 'budget'];
-    const completedFields = requiredFields.filter(field => 
-      userData[field] && (Array.isArray(userData[field]) ? userData[field].length > 0 : userData[field])
-    );
-    
-    if (completedFields.length === requiredFields.length && userData.customMessage) {
-      return 'Terminé';
-    } else {
-      return `En cours (${completedFields.length}/${requiredFields.length})`;
-    }
-  };
-
-  const getTotalResponses = () => {
-    return Object.keys(allData).length;
-  };
-
-  const getCompletedResponses = () => {
-    return Object.keys(allData).filter(userName => 
-      getUserCompletionStatus(userName) === 'Terminé'
-    ).length;
   };
 
   const exportToExcel = () => {
@@ -495,15 +591,16 @@ const AdminManagement = () => {
                     {getAllOptionsForQuestion(question.stepName).map(option => {
                       const count = getOptionStats(question.stepName, option.id);
                       const percentage = getTotalResponses() > 0 ? Math.round((count / getTotalResponses()) * 100) : 0;
+                      const creator = getOptionCreator(question.stepName, option.id);
                       
                       return (
                         <div key={option.id} className="flex items-center justify-between p-2 bg-muted rounded">
                           <span className="flex items-center gap-2">
                             <span>{option.emoji}</span>
                             <span>{option.label}</span>
-                            {option.addedBy && (
+                            {(option.addedBy || creator) && (
                               <Badge variant="outline" className="text-xs">
-                                {option.addedBy}
+                                {option.addedBy || creator}
                               </Badge>
                             )}
                           </span>
@@ -604,22 +701,25 @@ const AdminManagement = () => {
 
                     <div className="space-y-2">
                       <div className="flex flex-wrap gap-2">
-                        {getAllOptionsForQuestion(question.stepName).map(option => (
-                          <div key={option.id} className="flex items-center gap-2 bg-muted p-2 rounded">
-                            <span>{option.emoji} {option.label}</span>
-                            {option.addedBy && (
-                              <span className="text-xs text-muted-foreground">({option.addedBy})</span>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteOptionFromQuestionHandler(question.stepName, option.id)}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
+                        {getAllOptionsForQuestion(question.stepName).map(option => {
+                          const creator = getOptionCreator(question.stepName, option.id);
+                          return (
+                            <div key={option.id} className="flex items-center gap-2 bg-muted p-2 rounded">
+                              <span>{option.emoji} {option.label}</span>
+                              {(option.addedBy || creator) && (
+                                <span className="text-xs text-muted-foreground">({option.addedBy || creator})</span>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteOptionFromQuestionHandler(question.stepName, option.id)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          );
+                        })}
                       </div>
                       
                       <div className="flex gap-2">
